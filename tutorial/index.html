@@ -1,0 +1,164 @@
+<!-- <html> -->
+<head>
+<title>Demonstrating Akka Streams</title>
+</head>
+<body>
+
+<div>
+<p>
+This tutorial contains a few samples that demonstrates Akka Streams.
+</p>
+
+<p>
+Akka Streams is an implementation of 
+<a href="https://github.com/reactivestreams/reactive-streams" target="_blank">Reactive Streams</a>,
+which is a standard for asynchronous stream processing with non-blocking backpressure.
+</p>
+
+<p>
+Akka Streams is currently under development and these samples use a preview release, i.e.
+changes can be expected. Please try it out and send feedback to the
+<a href="http://groups.google.com/group/akka-user" target="_blank">Akka mailing list</a>.
+</p>
+
+</div>
+<div>
+<h2>Basic transformation</h2>
+
+<p>
+Open <a href="#code/src/main/scala/sample/stream/BasicTransformation.scala" class="shortcut">BasicTransformation.scala</a>  
+</p>
+
+<p>
+The starting point can be a collection, an iterator, a block of code
+which is evaluated repeatedly or a <code>org.reactivestreams.api.Producer</code>.
+Here we use a <code>Vector</code> (iterable) as input producer. 
+</p>
+
+<p>
+A <code>Flow</code> is a DSL for building stream manipulation pipelines.
+Each step can potentially be executed in parallel with other steps in the
+flow. The processors running the steps are created by completing the chain of steps
+with <code>consume</code>, <code>onComplete</code>, <code>toFuture</code> or 
+<code>toProducer</code>.
+</p>
+
+<p>
+In this sample we convert each read line to upper case and printing it
+to the console.
+</p>
+
+<p>
+Try to run the <code>sample.stream.BasicTransformation</code> class
+by selecting it in the 'Main class' menu in the <a href="#run" class="shortcut">Run</a> tab
+and click the 'Start' button.
+</p>
+
+<p>
+Try to add additional steps in the flow, for example skip short lines:
+</p>
+
+<pre><code>
+filter(line => line.length > 3).
+</code></pre>
+
+<p>
+All stream manipulation operations can be found in the 
+<a href="TODO" target="_blank">API documentation</a>.
+</p>
+
+</div>
+<div>
+<h2>Backpressure</h2>
+
+<p>
+The mandatory non-blocking backpressure is a key feature of 
+<a href="https://github.com/reactivestreams/reactive-streams" target="_blank">Reactive Streams</a>. 
+</p>
+
+<p>
+Open <a href="#code/src/main/scala/sample/stream/WritePrimes.scala" class="shortcut">WritePrimes.scala</a>  
+</p>
+
+<p>
+In this sample we use a fast producer and several consumers, with potentially different throughput capacity.
+To avoid out of memory problems it is important that the producer does not generate elements faster than 
+what can be consumed. Also the speed of the slowest consumer must be taken into account to avoid 
+unbounded buffering in intermediate steps.
+</p>
+
+<p>
+Here we use a random number generator as input. The input producer is a block of code which is
+evaluated repeatedly. It can generate elements very fast if needed.
+</p>
+
+<p>
+We filter the numbers through two prime number checks and end up with a stream of 
+prime numbers, which neighbor +2 number is also a prime number. These two flow filter steps 
+can potentially be pipelined, i.e. executed in parallel.
+</p>
+
+<p>
+Then we connect that prime number producer to two consumers. One writing to a file, and another
+printing to the console. To simulate that the file writer is slow we have added an additional
+sleep.
+</p>
+
+<p>
+Try to run the <code>sample.stream.WritePrimes</code> class
+by selecting it in the 'Main class' menu in the <a href="#run" class="shortcut">Run</a> tab
+and click the 'Start' button.
+</p>
+
+<p>
+Note that speed of the output in the console is limited by the slow file writer, i.e.
+one element per second.
+</p>
+
+<p>
+Open <a href="#code/target/primes.txt" class="shortcut">primes.txt</a> to see
+the file output.
+</p>
+
+</div>
+<div>
+<h2>Stream of streams</h2>
+
+<p>
+Let us take a look at an example of more advanced stream manipulation.
+</p>
+
+<p>
+Open <a href="#code/src/main/scala/sample/stream/GroupLogFile.scala" class="shortcut">GroupLogFile.scala</a>  
+</p>
+
+<p>
+We want to read a log file and pipe entries of different log level to separate files.
+For this the <code>groupBy</code> operator is useful. It demultiplexes the incoming 
+stream into separate output streams, one for each element key. The key is computed for
+each element using the given function. When a new key is encountered for the first time
+it is emitted to the downstream consumer together with a fresh producer that will eventually
+produce all the elements of the substream.
+</p>
+
+<p>
+In this sample we group by a regular expression matching the log levels and then
+write the elements of each group to a separate file.
+</p>
+
+<p>
+Try to run the <code>sample.stream.GroupLogFile</code> class
+by selecting it in the 'Main class' menu in the <a href="#run" class="shortcut">Run</a> tab
+and click the 'Start' button.
+</p>
+
+<p>
+Open the input <a href="#code/src/main/resources/logfile.txt" class="shortcut">logfile.txt</a>
+and look at the resulting output log files in the
+<a href="#code/target" class="shortcut">target</a> directory.
+</p>
+   
+</div>
+
+</body>
+</html>
