@@ -6,9 +6,9 @@ import scala.util.Failure
 import scala.util.Success
 import akka.actor.ActorSystem
 import akka.pattern.ask
+import akka.io.IO
 import akka.stream.FlowMaterializer
 import akka.stream.MaterializerSettings
-import akka.stream.io.StreamIO
 import akka.stream.io.StreamTcp
 import akka.stream.scaladsl.Flow
 import akka.util.ByteString
@@ -53,7 +53,7 @@ object TcpEcho {
     val materializer = FlowMaterializer(settings)
     implicit val timeout = Timeout(5.seconds)
 
-    val serverFuture = (StreamIO(StreamTcp) ? StreamTcp.Bind(serverAddress, settings = settings))
+    val serverFuture = (IO(StreamTcp) ? StreamTcp.Bind(serverAddress, settings = settings))
 
     serverFuture.onSuccess {
       case serverBinding: StreamTcp.TcpServerBinding =>
@@ -80,7 +80,7 @@ object TcpEcho {
     val materializer = FlowMaterializer(settings)
     implicit val timeout = Timeout(5.seconds)
 
-    val clientFuture = (StreamIO(StreamTcp) ? StreamTcp.Connect(serverAddress, settings = settings))
+    val clientFuture = (IO(StreamTcp) ? StreamTcp.Connect(serverAddress, settings = settings))
     clientFuture.onSuccess {
       case clientBinding: StreamTcp.OutgoingTcpConnection =>
         val testInput = ('a' to 'z').map(ByteString(_))
