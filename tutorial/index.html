@@ -11,8 +11,9 @@ This tutorial contains a few samples that demonstrates Akka Streams.
 
 <p>
 Akka Streams is an implementation of 
-<a href="https://github.com/reactivestreams/reactive-streams" target="_blank">Reactive Streams</a>,
+<a href="http://www.reactive-streams.org/" target="_blank">Reactive Streams</a>,
 which is a standard for asynchronous stream processing with non-blocking backpressure.
+Akka Streams is interoperable with other Reactive Streams implementations.
 </p>
 
 <p>
@@ -21,26 +22,65 @@ changes can be expected. Please try it out and send feedback to the
 <a href="http://groups.google.com/group/akka-user" target="_blank">Akka mailing list</a>.
 </p>
 
+<p>
+Akka Streams provides a way to express and run a chain of asynchronous processing
+steps acting on a sequence of elements. Every step is processed by one actor to
+support parallelism. The user describes the “what” instead of the “how”, i.e. things like
+batching, buffering, thread-safety are handled behind the scenes.
+<p>
+
+<p>
+The processing steps are declared with a DSL, a so called <code>Flow</code>.
+The starting point can be a collection, an iterator, a block of code
+which is evaluated repeatedly or a <code>org.reactivestreams.api.Producer</code>.
+The <code>Producer</code> starting point can be the output of another Akka Streams
+<code>Flow</code> or a <code>Producer</code> implemented by another library. 
+</p>
+
+<p>
+Each DSL element produces a new Flow that can be further transformed, building
+up a description of the complete transformation pipeline. In order to execute
+this pipeline the Flow must be materialized by calling one of the <code>consume</code>, 
+<code>onComplete</code>, <code>toFuture</code> or <code>toProducer</code> methods
+on it.
+</p>
+
+<p>
+It should be noted that the streams modeled by this library are “hot”,
+meaning that they asynchronously flow through a series of processors without
+detailed control by the user. In particular it is not predictable how many
+elements a given transformation step might buffer before handing elements
+downstream, which means that transformation functions may be invoked more
+often than for corresponding transformations on strict collections like
+<code>List</code>. <b>An important consequence</b> is that elements that were
+produced into a stream may be discarded by later processors, e.g. when using the
+<code>take</code> combinator.
+</p>
+
+<p>
+By default every operation is executed within its own <code>Actor</code>
+to enable full pipelining of the chained set of computations. This behavior
+is determined by the <code>akka.stream.FlowMaterializer</code> which is required
+by those methods that materialize the Flow into a series of
+<code>org.reactivestreams.api.Processor</code> instances that are started and active.
+Synchronous compaction of steps is possible (but not yet implemented). 
+The returned <code>Producer</code> is interoperable with other Reactive Streams implementations.
+</p>
+
 </div>
 <div>
 <h2>Basic transformation</h2>
+
+<p>
+What does a <code>Flow</code> look like?
+</p>
 
 <p>
 Open <a href="#code/src/main/scala/sample/stream/BasicTransformation.scala" class="shortcut">BasicTransformation.scala</a>  
 </p>
 
 <p>
-The starting point can be a collection, an iterator, a block of code
-which is evaluated repeatedly or a <code>org.reactivestreams.api.Producer</code>.
 Here we use a <code>Vector</code> (iterable) as input producer. 
-</p>
-
-<p>
-A <code>Flow</code> is a DSL for building stream manipulation pipelines.
-Each step can potentially be executed in parallel with other steps in the
-flow. The processors running the steps are created by completing the chain of steps
-with <code>consume</code>, <code>onComplete</code>, <code>toFuture</code> or 
-<code>toProducer</code>.
 </p>
 
 <p>
@@ -64,7 +104,7 @@ filter(line => line.length > 3).
 
 <p>
 All stream manipulation operations can be found in the 
-<a href="TODO" target="_blank">API documentation</a>.
+<a href="http://doc.akka.io/api/akka-stream-experimental/0.2/index.html#akka.stream.scaladsl.Flow" target="_blank">API documentation</a>.
 </p>
 
 </div>
@@ -73,7 +113,7 @@ All stream manipulation operations can be found in the
 
 <p>
 The mandatory non-blocking backpressure is a key feature of 
-<a href="https://github.com/reactivestreams/reactive-streams" target="_blank">Reactive Streams</a>. 
+<a href="http://www.reactive-streams.org/" target="_blank">Reactive Streams</a>. 
 </p>
 
 <p>
@@ -159,6 +199,117 @@ and look at the resulting output log files in the
 </p>
    
 </div>
+<div>
+<h2>TCP Stream</h2>
+
+<p>
+Akka Streams also provides a stream based API on top of 
+<a href="http://doc.akka.io/docs/akka/2.3.2/scala/io.html" target="_blank">Akka I/O</a>.
+</p>
+
+<p>
+Open <a href="#code/src/main/scala/sample/stream/TcpEcho.scala" class="shortcut">TcpEcho.scala</a>  
+</p>
+
+<p>
+When you <a href="#run" class="shortcut">Run</a> <code>TcpEcho</code> without parameters it starts
+both client and server in the same JVM and the client connects to the server over port 6000.
+</p>
+
+<p>
+The server is started by sending a <code>StreamTcp.Bind</code> message to the actor provided by the
+<code>akka.stream.io.StreamIO</code> extension. It receives a <code>StreamTcp.TcpServerBinding</code>
+message as reply. Each new client connection is represented by a new <code>IncomingTcpConnection</code>
+element in the <code>connectionStream</code> <code>Producer[IncomingTcpConnection]</code>. From the 
+connection the server can operate on the <code>inputStream: Producer[ByteString]</code> and 
+<code>outputStream: Consumer[ByteString]</code>.
+</p>
+
+<p>
+In this sample the server sends back the same bytes as it receives.
+</p>
+<pre><code>
+conn.inputStream.produceTo(conn.outputStream)
+</code></pre>
+</p>
+
+<p>
+You can add transformation of the bytes using a <code>Flow</code>. For example convert characters to
+upper case.
+</p>
+<pre><code>
+Flow(conn.inputStream).map(byteStr => byteStr.map(_.toChar.toUpper.asInstanceOf[Byte])).
+  toProducer(materializer).
+  produceTo(conn.outputStream)
+</code></pre>
+
+<p>
+The connection from the client is established by sending a <code>StreamTcp.Connect</code> message to the actor
+provided by the <code>akka.stream.io.StreamIO</code> extension. It receives a 
+<code>StreamTcp.OutgoingTcpConnection</code> message as reply and from that it can write
+data to the <code>outputStream</code> <code>Consumer[ByteString]</code>.
+The client can read the response from the server via the <code>inputStream</code> <code>Producer[ByteString]</code>.
+</p>
+
+<p>
+In this sample the client sends a sequence of characters one-by-one to the server, aggregates the replies
+into a collection, and finally prints the contents of this collection.   
+</p>
+
+<p>
+Try to run the <code>sample.stream.TcpEcho</code> class
+by selecting it in the 'Main class' menu in the <a href="#run" class="shortcut">Run</a> tab
+and click the 'Start' button.
+</p>
+
+<p>
+That runs the client and server in the same JVM process. It can be more
+interesting to run them in separate processes. Run the following commands in separate 
+terminal windows.
+</p>
+
+<pre><code>
+&lt;path to activator dir&gt;/activator "run-main sample.stream.TcpEcho server 0.0.0.0 6001"		
+</code></pre>
+
+<pre><code>
+&lt;path to activator dir&gt;/activator "run-main sample.stream.TcpEcho client 127.0.0.1 6001"		
+</code></pre>
+
+<p>
+You can also interact with the server with telnet:
+</p>
+
+<pre><code>
+telnet 127.0.0.1 6001
+</code></pre>
+
+<p>
+Type a few characters in the telnet session and press enter to see them echoed back to the terminal.
+</p>
+
+</div>
+<div>
+<h2>Links</h2>
+
+<ul>
+<li><a href="http://doc.akka.io/api/akka-stream-experimental/0.2/" target="_blank">Akka Streams API documentation</a></li>
+<li><a href="http://www.reactive-streams.org/" target="_blank">Reactive Streams</a></li>
+</ul>
+
+</div>
+
+
+<div>
+<h2>Links</h2>
+
+<ul>
+<li><a href="http://doc.akka.io/api/akka-stream-experimental/0.2/" target="_blank">Akka Streams API documentation</a></li>
+<li><a href="http://www.reactive-streams.org/" target="_blank">Reactive Streams</a></li>
+</ul>
+
+</div>
+
 
 </body>
 </html>
