@@ -2,7 +2,6 @@ package sample.stream
 
 import java.io.FileOutputStream
 import java.io.PrintWriter
-import scala.concurrent.duration._
 import scala.io.Source
 import scala.util.Try
 import akka.actor.ActorSystem

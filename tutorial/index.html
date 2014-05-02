@@ -40,7 +40,7 @@ The <code>Producer</code> starting point can be the output of another Akka Strea
 <p>
 Each DSL element produces a new Flow that can be further transformed, building
 up a description of the complete transformation pipeline. In order to execute
-this pipeline the Flow must be materialized by calling one of the <code>consume</code>, 
+this pipeline the <code>Flow</code> must be materialized by calling one of the <code>consume</code>,
 <code>onComplete</code>, <code>toFuture</code> or <code>toProducer</code> methods
 on it.
 </p>
@@ -80,7 +80,9 @@ Open <a href="#code/src/main/scala/sample/stream/BasicTransformation.scala" clas
 </p>
 
 <p>
-Here we use a <code>Vector</code> (iterable) as input producer. 
+Here we use a <code>Vector</code> as input producer; note that this works because <code>Vector[A]</code>
+is <code>Iterable[A]</code>, which is the expected type. In other words, it is not necessary to have
+all the elements known in advance.
 </p>
 
 <p>
