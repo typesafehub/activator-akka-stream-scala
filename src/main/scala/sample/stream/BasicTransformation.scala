@@ -1,13 +1,12 @@
 package sample.stream
 
-import scala.util.Failure
-import scala.util.Success
 import akka.actor.ActorSystem
-import akka.stream.FlowMaterializer
-import akka.stream.MaterializerSettings
+import akka.stream.{ FlowMaterializer, MaterializerSettings }
 import akka.stream.scaladsl.Flow
+import scala.util.{ Failure, Success }
 
 object BasicTransformation {
+
   def main(args: Array[String]): Unit = {
     implicit val system = ActorSystem("Sys")
 
@@ -28,6 +27,5 @@ object BasicTransformation {
           println("Failure: " + e.getMessage)
           system.shutdown()
       }
-
   }
 }
