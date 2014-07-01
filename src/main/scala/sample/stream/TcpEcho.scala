@@ -1,18 +1,15 @@
 package sample.stream
 
-import java.net.InetSocketAddress
-import scala.concurrent.duration._
-import scala.util.Failure
-import scala.util.Success
 import akka.actor.ActorSystem
-import akka.pattern.ask
 import akka.io.IO
-import akka.stream.FlowMaterializer
-import akka.stream.MaterializerSettings
+import akka.pattern.ask
+import akka.stream.{ FlowMaterializer, MaterializerSettings }
 import akka.stream.io.StreamTcp
 import akka.stream.scaladsl.Flow
-import akka.util.ByteString
-import akka.util.Timeout
+import akka.util.{ ByteString, Timeout }
+import java.net.InetSocketAddress
+import scala.concurrent.duration._
+import scala.util.{ Failure, Success }
 
 object TcpEcho {
 
@@ -53,7 +50,7 @@ object TcpEcho {
     val materializer = FlowMaterializer(settings)
     implicit val timeout = Timeout(5.seconds)
 
-    val serverFuture = (IO(StreamTcp) ? StreamTcp.Bind(serverAddress, settings = settings))
+    val serverFuture = IO(StreamTcp) ? StreamTcp.Bind(settings, serverAddress)
 
     serverFuture.onSuccess {
       case serverBinding: StreamTcp.TcpServerBinding =>
@@ -80,7 +77,7 @@ object TcpEcho {
     val materializer = FlowMaterializer(settings)
     implicit val timeout = Timeout(5.seconds)
 
-    val clientFuture = (IO(StreamTcp) ? StreamTcp.Connect(serverAddress, settings = settings))
+    val clientFuture = IO(StreamTcp) ? StreamTcp.Connect(settings, serverAddress)
     clientFuture.onSuccess {
       case clientBinding: StreamTcp.OutgoingTcpConnection =>
         val testInput = ('a' to 'z').map(ByteString(_))
@@ -103,7 +100,5 @@ object TcpEcho {
         println(s"Client could not connect to $serverAddress: ${e.getMessage}")
         system.shutdown()
     }
-
   }
-
 }

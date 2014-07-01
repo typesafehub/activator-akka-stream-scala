@@ -1,16 +1,15 @@
 package sample.stream
 
-import java.io.FileOutputStream
-import java.io.PrintWriter
+import akka.actor.ActorSystem
+import akka.stream.{ FlowMaterializer, MaterializerSettings }
+import akka.stream.scaladsl.Flow
+import java.io.{ FileOutputStream, PrintWriter }
+import org.reactivestreams.api.Producer
 import scala.concurrent.forkjoin.ThreadLocalRandom
 import scala.util.Try
-import org.reactivestreams.api.Producer
-import akka.actor.ActorSystem
-import akka.stream.FlowMaterializer
-import akka.stream.MaterializerSettings
-import akka.stream.scaladsl.Flow
 
 object WritePrimes {
+
   def main(args: Array[String]): Unit = {
     implicit val system = ActorSystem("Sys")
     val materializer = FlowMaterializer(MaterializerSettings())

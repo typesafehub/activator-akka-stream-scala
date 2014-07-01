@@ -1,24 +1,25 @@
 package sample.stream
 
-import java.io.FileOutputStream
-import java.io.PrintWriter
+import akka.actor.ActorSystem
+import akka.stream.{ FlowMaterializer, MaterializerSettings }
+import akka.stream.scaladsl.Flow
+import java.io.{ FileOutputStream, PrintWriter }
 import scala.io.Source
 import scala.util.Try
-import akka.actor.ActorSystem
-import akka.stream.FlowMaterializer
-import akka.stream.MaterializerSettings
-import akka.stream.scaladsl.Flow
 
 object GroupLogFile {
+
   def main(args: Array[String]): Unit = {
     implicit val system = ActorSystem("Sys")
+
     val materializer = FlowMaterializer(MaterializerSettings())
 
     val LoglevelPattern = """.*\[(DEBUG|INFO|WARN|ERROR)\].*""".r
 
     // read lines from a log file
     val source = Source.fromFile("src/main/resources/logfile.txt", "utf-8")
-    val completedFuture = Flow(source.getLines()).
+
+    Flow(source.getLines()).
       // group them by log level
       groupBy {
         case LoglevelPattern(level) => level
