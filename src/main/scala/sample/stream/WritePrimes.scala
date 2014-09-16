@@ -1,48 +1,56 @@
 package sample.stream
 
-import akka.actor.ActorSystem
-import akka.stream.{ FlowMaterializer, MaterializerSettings }
-import akka.stream.scaladsl.Flow
 import java.io.{ FileOutputStream, PrintWriter }
-import org.reactivestreams.api.Producer
 import scala.concurrent.forkjoin.ThreadLocalRandom
-import scala.util.Try
+import scala.util.{ Failure, Success }
+import akka.actor.ActorSystem
+import akka.stream.scaladsl2.FlowFrom
+import akka.stream.scaladsl2.FlowGraph
+import akka.stream.scaladsl2.FlowGraphImplicits._
+import akka.stream.scaladsl2.FlowMaterializer
+import akka.stream.scaladsl2.ForeachSink
+import akka.stream.scaladsl2.Broadcast
 
 object WritePrimes {
 
   def main(args: Array[String]): Unit = {
     implicit val system = ActorSystem("Sys")
-    val materializer = FlowMaterializer(MaterializerSettings())
+    implicit val materializer = FlowMaterializer()(system)
 
     // generate random numbers
     val maxRandomNumberSize = 1000000
-    val producer: Producer[Int] =
-      Flow(() => ThreadLocalRandom.current().nextInt(maxRandomNumberSize)).
-        // filter prime numbers
-        filter(rnd => isPrime(rnd)).
-        // and neighbor +2 is also prime
-        filter(prime => isPrime(prime + 2)).
-        toProducer(materializer)
-
-    // connect two consumer flows to the producer  
+    val primeFlow = FlowFrom(() => Some(ThreadLocalRandom.current().nextInt(maxRandomNumberSize))).
+      // filter prime numbers
+      filter(rnd => isPrime(rnd)).
+      // and neighbor +2 is also prime
+      filter(prime => isPrime(prime + 2))
 
     // write to file  
     val output = new PrintWriter(new FileOutputStream("target/primes.txt"), true)
-    Flow(producer).
-      foreach { prime =>
-        output.println(prime)
-        // simulate slow consumer
-        Thread.sleep(1000)
-      }.
-      onComplete(materializer) { _ =>
-        Try(output.close())
-        system.shutdown()
-      }
+    val slowSink = ForeachSink[Int] { prime =>
+      output.println(prime)
+      // simulate slow consumer
+      Thread.sleep(1000)
+    }
 
     // write to console  
-    Flow(producer).
-      foreach(println).
-      consume(materializer)
+    val consoleSink = ForeachSink[Int](println)
+
+    // connect flows
+    val materialized = FlowGraph { implicit builder =>
+      val broadcast = Broadcast[Int]
+      primeFlow ~> broadcast ~> slowSink
+      broadcast ~> consoleSink
+    }.run()
+
+    // shutdown when done
+    import system.dispatcher
+    slowSink.future(materialized).onComplete {
+      case Success(_) => system.shutdown()
+      case Failure(e) =>
+        println("Failure: " + e.getMessage)
+        system.shutdown()
+    }
 
   }
 

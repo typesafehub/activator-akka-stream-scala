@@ -46,11 +46,10 @@ object TcpEcho {
   def server(system: ActorSystem, serverAddress: InetSocketAddress): Unit = {
     implicit val sys = system
     implicit val ec = system.dispatcher
-    val settings = MaterializerSettings()
-    val materializer = FlowMaterializer(settings)
+    implicit val materializer = FlowMaterializer()
     implicit val timeout = Timeout(5.seconds)
 
-    val serverFuture = IO(StreamTcp) ? StreamTcp.Bind(settings, serverAddress)
+    val serverFuture = IO(StreamTcp) ? StreamTcp.Bind(serverAddress)
 
     serverFuture.onSuccess {
       case serverBinding: StreamTcp.TcpServerBinding =>
@@ -58,8 +57,8 @@ object TcpEcho {
 
         Flow(serverBinding.connectionStream).foreach { conn ⇒
           println("Client connected from: " + conn.remoteAddress)
-          conn.inputStream.produceTo(conn.outputStream)
-        }.consume(materializer)
+          conn.inputStream.subscribe(conn.outputStream)
+        }
     }
 
     serverFuture.onFailure {
@@ -73,19 +72,18 @@ object TcpEcho {
   def client(system: ActorSystem, serverAddress: InetSocketAddress): Unit = {
     implicit val sys = system
     implicit val ec = system.dispatcher
-    val settings = MaterializerSettings()
-    val materializer = FlowMaterializer(settings)
+    implicit val materializer = FlowMaterializer()
     implicit val timeout = Timeout(5.seconds)
 
-    val clientFuture = IO(StreamTcp) ? StreamTcp.Connect(settings, serverAddress)
+    val clientFuture = IO(StreamTcp) ? StreamTcp.Connect(serverAddress)
     clientFuture.onSuccess {
       case clientBinding: StreamTcp.OutgoingTcpConnection =>
         val testInput = ('a' to 'z').map(ByteString(_))
-        Flow(testInput).toProducer(materializer).produceTo(clientBinding.outputStream)
+        Flow(testInput).toPublisher().subscribe(clientBinding.outputStream)
 
         Flow(clientBinding.inputStream).fold(Vector.empty[Char]) { (acc, in) ⇒ acc ++ in.map(_.asInstanceOf[Char]) }.
           foreach(result => println(s"Result: " + result.mkString("[", ", ", "]"))).
-          onComplete(materializer) {
+          onComplete {
             case Success(_) =>
               println("Shutting down client")
               system.shutdown()

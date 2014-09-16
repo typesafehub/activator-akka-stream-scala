@@ -1,14 +1,16 @@
 package sample.stream
 
-import akka.actor.ActorSystem
-import akka.stream.{ FlowMaterializer, MaterializerSettings }
-import akka.stream.scaladsl.Flow
 import scala.util.{ Failure, Success }
+import akka.actor.ActorSystem
+import akka.stream.scaladsl2.FlowFrom
+import akka.stream.scaladsl2.FlowMaterializer
+import akka.stream.scaladsl2.ForeachSink
 
 object BasicTransformation {
 
   def main(args: Array[String]): Unit = {
-    implicit val system = ActorSystem("Sys")
+    val system = ActorSystem("Sys")
+    implicit val materializer = FlowMaterializer()(system)
 
     val text =
       """|Lorem Ipsum is simply dummy text of the printing and typesetting industry.
@@ -16,16 +18,20 @@ object BasicTransformation {
          |when an unknown printer took a galley of type and scrambled it to make a type 
          |specimen book.""".stripMargin
 
-    Flow(text.split("\\s").toVector).
+    val flow = FlowFrom(text.split("\\s").toVector).
       // transform
-      map(line => line.toUpperCase).
-      // print to console (can also use ``foreach(println)``)
-      foreach(transformedLine => println(transformedLine)).
-      onComplete(FlowMaterializer(MaterializerSettings())) {
-        case Success(_) => system.shutdown()
-        case Failure(e) =>
-          println("Failure: " + e.getMessage)
-          system.shutdown()
-      }
+      map(line => line.toUpperCase)
+
+    val foreachSink = ForeachSink[String](transformedLine => println(transformedLine))
+    val materializedFlow = flow.withSink(foreachSink).run()
+
+    // shutdown when done
+    import system.dispatcher
+    foreachSink.future(materializedFlow).onComplete {
+      case Success(_) => system.shutdown()
+      case Failure(e) =>
+        println("Failure: " + e.getMessage)
+        system.shutdown()
+    }
   }
 }
