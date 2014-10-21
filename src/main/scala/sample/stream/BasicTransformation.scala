@@ -1,14 +1,16 @@
 package sample.stream
 
 import akka.actor.ActorSystem
-import akka.stream.{ FlowMaterializer, MaterializerSettings }
-import akka.stream.scaladsl.Flow
-import scala.util.{ Failure, Success }
+import akka.stream.MaterializerSettings
+import akka.stream.scaladsl2._
 
 object BasicTransformation {
 
   def main(args: Array[String]): Unit = {
     implicit val system = ActorSystem("Sys")
+    import system.dispatcher
+
+    implicit val materializer = FlowMaterializer(MaterializerSettings(system))
 
     val text =
       """|Lorem Ipsum is simply dummy text of the printing and typesetting industry.
@@ -16,16 +18,9 @@ object BasicTransformation {
          |when an unknown printer took a galley of type and scrambled it to make a type 
          |specimen book.""".stripMargin
 
-    Flow(text.split("\\s").toVector).
-      // transform
-      map(line => line.toUpperCase).
-      // print to console (can also use ``foreach(println)``)
-      foreach(transformedLine => println(transformedLine)).
-      onComplete(FlowMaterializer(MaterializerSettings())) {
-        case Success(_) => system.shutdown()
-        case Failure(e) =>
-          println("Failure: " + e.getMessage)
-          system.shutdown()
-      }
+    Source(text.split("\\s").iterator).
+      map(_.toUpperCase).
+      runWith(ForeachDrain(println)).
+      onComplete(_ => system.shutdown())
   }
 }

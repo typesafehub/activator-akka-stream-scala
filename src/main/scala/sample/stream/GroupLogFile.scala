@@ -1,25 +1,27 @@
 package sample.stream
 
 import akka.actor.ActorSystem
-import akka.stream.{ FlowMaterializer, MaterializerSettings }
-import akka.stream.scaladsl.Flow
+import akka.stream.MaterializerSettings
+import akka.stream.scaladsl2._
 import java.io.{ FileOutputStream, PrintWriter }
-import scala.io.Source
 import scala.util.Try
 
 object GroupLogFile {
 
   def main(args: Array[String]): Unit = {
-    implicit val system = ActorSystem("Sys")
+    // execution context
+    import system.dispatcher
 
-    val materializer = FlowMaterializer(MaterializerSettings())
+    // actor system and implicit materializer
+    val system = ActorSystem("Sys")
+    implicit val materializer = FlowMaterializer(MaterializerSettings(system))(system)
 
     val LoglevelPattern = """.*\[(DEBUG|INFO|WARN|ERROR)\].*""".r
 
     // read lines from a log file
-    val source = Source.fromFile("src/main/resources/logfile.txt", "utf-8")
+    val source = io.Source.fromFile("src/main/resources/logfile.txt", "utf-8")
 
-    Flow(source.getLines()).
+    Source(source.getLines()).
       // group them by log level
       groupBy {
         case LoglevelPattern(level) => level
@@ -27,14 +29,13 @@ object GroupLogFile {
       }.
       // write lines of each group to a separate file
       foreach {
-        case (level, producer) =>
+        case (level, groupFlow) =>
           val output = new PrintWriter(new FileOutputStream(s"target/log-$level.txt"), true)
-          Flow(producer).
-            foreach(line => output.println(line)).
-            // close resource when the group stream is completed
-            onComplete(materializer)(_ => Try(output.close()))
+          // close resource when the group stream is completed
+          // foreach returns a future that we can key the close() off of
+          groupFlow.foreach(line => output.println(line)).onComplete(_ => Try(output.close()))
       }.
-      onComplete(materializer) { _ =>
+      onComplete { _ =>
         Try(source.close())
         system.shutdown()
       }
