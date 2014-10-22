@@ -10,7 +10,7 @@ object BasicTransformation {
     implicit val system = ActorSystem("Sys")
     import system.dispatcher
 
-    implicit val materializer = FlowMaterializer(MaterializerSettings(system))
+    implicit val materializer = FlowMaterializer()
 
     val text =
       """|Lorem Ipsum is simply dummy text of the printing and typesetting industry.
@@ -22,5 +22,8 @@ object BasicTransformation {
       map(_.toUpperCase).
       runWith(ForeachDrain(println)).
       onComplete(_ => system.shutdown())
+
+    // could also use .foreach(println) instead of .runWith(ForeachDrain(println)) above
+    // as it is shorthand for the same thing
   }
 }

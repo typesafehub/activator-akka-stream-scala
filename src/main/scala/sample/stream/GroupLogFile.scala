@@ -9,19 +9,19 @@ import scala.util.Try
 object GroupLogFile {
 
   def main(args: Array[String]): Unit = {
+    // actor system and implicit materializer
+    implicit val system = ActorSystem("Sys")
     // execution context
     import system.dispatcher
 
-    // actor system and implicit materializer
-    val system = ActorSystem("Sys")
-    implicit val materializer = FlowMaterializer(MaterializerSettings(system))(system)
+    implicit val materializer = FlowMaterializer()
 
     val LoglevelPattern = """.*\[(DEBUG|INFO|WARN|ERROR)\].*""".r
 
     // read lines from a log file
-    val source = io.Source.fromFile("src/main/resources/logfile.txt", "utf-8")
+    val logFile = io.Source.fromFile("src/main/resources/logfile.txt", "utf-8")
 
-    Source(source.getLines()).
+    Source(logFile.getLines()).
       // group them by log level
       groupBy {
         case LoglevelPattern(level) => level
@@ -36,7 +36,7 @@ object GroupLogFile {
           groupFlow.foreach(line => output.println(line)).onComplete(_ => Try(output.close()))
       }.
       onComplete { _ =>
-        Try(source.close())
+        Try(logFile.close())
         system.shutdown()
       }
   }

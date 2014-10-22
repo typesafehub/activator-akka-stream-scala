@@ -47,7 +47,7 @@ object TcpEcho {
     implicit val sys = system
     import system.dispatcher
 
-    implicit val materializer = FlowMaterializer(MaterializerSettings(system))
+    implicit val materializer = FlowMaterializer()
     implicit val timeout = Timeout(5.seconds)
 
     val serverFuture = IO(StreamTcp) ? StreamTcp.Bind(serverAddress)
@@ -73,7 +73,7 @@ object TcpEcho {
   def client(system: ActorSystem, serverAddress: InetSocketAddress): Unit = {
     implicit val sys = system
     import system.dispatcher
-    implicit val materializer = FlowMaterializer(MaterializerSettings(system))
+    implicit val materializer = FlowMaterializer()
     implicit val timeout = Timeout(5.seconds)
 
     val clientFuture = IO(StreamTcp) ? StreamTcp.Connect(serverAddress)
