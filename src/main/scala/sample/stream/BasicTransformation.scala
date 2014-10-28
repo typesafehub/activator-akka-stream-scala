@@ -20,10 +20,12 @@ object BasicTransformation {
 
     Source(text.split("\\s").iterator).
       map(_.toUpperCase).
-      runWith(ForeachDrain(println)).
+      foreach(println).
       onComplete(_ => system.shutdown())
 
-    // could also use .foreach(println) instead of .runWith(ForeachDrain(println)) above
-    // as it is shorthand for the same thing
+    // could also use .runWith(ForeachDrain(println)) instead of .foreach(println) above
+    // as it is shorthand for the same thing. Drains may be constructed elsewhere and plugged
+    // in like this. Note also that foreach returns a future (in either form) which may be
+    // used to attach lifecycle events to, like here with the onComplete.
   }
 }
