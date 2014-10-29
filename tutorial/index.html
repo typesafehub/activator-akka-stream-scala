@@ -36,7 +36,7 @@ A <code>Flow</code> may be connected to a <code>Source</code> and/or a
 "open" flow. Any open flow when connected to a <code>Source</code> itself becomes a 
 <code>Source</code> and likewise when connected to a <code>Sink</code> becomes a
 <code>Sink</code>. A <code>Flow</code> with both a <code>Source</code> and
-<code>Sink</code> is called a <code>RunnableSource</code> and may be executed.
+<code>Sink</code> is called a <code>RunnableFlow</code> and may be executed.
 </p>
 <p> 
 The <code>Source</code> and can be constructed from a 
@@ -92,7 +92,8 @@ Open <a href="#code/src/main/scala/sample/stream/BasicTransformation.scala" clas
 </p>
 
 <p>
-Here we use an <code>Iterator</code> from a File source as input producer; 
+Here we use an <code>Iterator</code> over the Array produced by splitting the text
+using the spaces, as input producer; 
 note that the iterator is an <code>Iterator[String]</code> and this produces
 a <code>Source[String]</code>. The flow written to use this <code>Source</code>
 must match the type, so we could not treat the source as a source of <code>Int</code>
