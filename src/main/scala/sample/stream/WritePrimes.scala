@@ -1,48 +1,59 @@
 package sample.stream
 
 import akka.actor.ActorSystem
-import akka.stream.{ FlowMaterializer, MaterializerSettings }
-import akka.stream.scaladsl.Flow
+import akka.stream.MaterializerSettings
+import akka.stream.scaladsl2._
 import java.io.{ FileOutputStream, PrintWriter }
-import org.reactivestreams.api.Producer
+
 import scala.concurrent.forkjoin.ThreadLocalRandom
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
 object WritePrimes {
 
   def main(args: Array[String]): Unit = {
     implicit val system = ActorSystem("Sys")
-    val materializer = FlowMaterializer(MaterializerSettings())
+    import system.dispatcher
+    implicit val materializer = FlowMaterializer()
 
     // generate random numbers
     val maxRandomNumberSize = 1000000
-    val producer: Producer[Int] =
-      Flow(() => ThreadLocalRandom.current().nextInt(maxRandomNumberSize)).
+    val primeSource: Source[Int] =
+      Source(() => Some(ThreadLocalRandom.current().nextInt(maxRandomNumberSize))).
         // filter prime numbers
         filter(rnd => isPrime(rnd)).
         // and neighbor +2 is also prime
-        filter(prime => isPrime(prime + 2)).
-        toProducer(materializer)
+        filter(prime => isPrime(prime + 2))
 
-    // connect two consumer flows to the producer  
-
-    // write to file  
+    // write to file sink
     val output = new PrintWriter(new FileOutputStream("target/primes.txt"), true)
-    Flow(producer).
-      foreach { prime =>
-        output.println(prime)
-        // simulate slow consumer
-        Thread.sleep(1000)
-      }.
-      onComplete(materializer) { _ =>
+    val slowSink = ForeachDrain[Int] { prime =>
+      output.println(prime)
+      // simulate slow consumer
+      Thread.sleep(1000)
+    }
+
+    // console output sink
+    val consoleSink = ForeachDrain[Int](println)
+
+    import FlowGraphImplicits._
+
+    // send primes to both slow file sink and console sink using graph API
+    val materialized = FlowGraph { implicit builder =>
+      val broadcast = Broadcast[Int] // the splitter - like a Unix tee
+      primeSource ~> broadcast ~> slowSink // connect primes to splitter, and one side to file
+      broadcast ~> consoleSink // connect other side of splitter to console
+    }.run()
+
+    // ensure the output file is closed and the system shutdown upon completion
+    materialized.materializedDrain(slowSink).onComplete {
+      case Success(_) =>
         Try(output.close())
         system.shutdown()
-      }
-
-    // write to console  
-    Flow(producer).
-      foreach(println).
-      consume(materializer)
+      case Failure(e) =>
+        println(s"Failure: ${e.getMessage}")
+        Try(output.close())
+        system.shutdown()
+    }
 
   }
 

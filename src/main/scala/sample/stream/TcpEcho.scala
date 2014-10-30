@@ -3,9 +3,9 @@ package sample.stream
 import akka.actor.ActorSystem
 import akka.io.IO
 import akka.pattern.ask
-import akka.stream.{ FlowMaterializer, MaterializerSettings }
+import akka.stream.MaterializerSettings
 import akka.stream.io.StreamTcp
-import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl2._
 import akka.util.{ ByteString, Timeout }
 import java.net.InetSocketAddress
 import scala.concurrent.duration._
@@ -45,21 +45,21 @@ object TcpEcho {
 
   def server(system: ActorSystem, serverAddress: InetSocketAddress): Unit = {
     implicit val sys = system
-    implicit val ec = system.dispatcher
-    val settings = MaterializerSettings()
-    val materializer = FlowMaterializer(settings)
+    import system.dispatcher
+
+    implicit val materializer = FlowMaterializer()
     implicit val timeout = Timeout(5.seconds)
 
-    val serverFuture = IO(StreamTcp) ? StreamTcp.Bind(settings, serverAddress)
+    val serverFuture = IO(StreamTcp) ? StreamTcp.Bind(serverAddress)
 
     serverFuture.onSuccess {
       case serverBinding: StreamTcp.TcpServerBinding =>
         println("Server started, listening on: " + serverBinding.localAddress)
 
-        Flow(serverBinding.connectionStream).foreach { conn ⇒
+        Source(serverBinding.connectionStream).foreach { conn ⇒
           println("Client connected from: " + conn.remoteAddress)
-          conn.inputStream.produceTo(conn.outputStream)
-        }.consume(materializer)
+          conn.inputStream.subscribe(conn.outputStream)
+        }
     }
 
     serverFuture.onFailure {
@@ -72,21 +72,20 @@ object TcpEcho {
 
   def client(system: ActorSystem, serverAddress: InetSocketAddress): Unit = {
     implicit val sys = system
-    implicit val ec = system.dispatcher
-    val settings = MaterializerSettings()
-    val materializer = FlowMaterializer(settings)
+    import system.dispatcher
+    implicit val materializer = FlowMaterializer()
     implicit val timeout = Timeout(5.seconds)
 
-    val clientFuture = IO(StreamTcp) ? StreamTcp.Connect(settings, serverAddress)
+    val clientFuture = IO(StreamTcp) ? StreamTcp.Connect(serverAddress)
     clientFuture.onSuccess {
       case clientBinding: StreamTcp.OutgoingTcpConnection =>
         val testInput = ('a' to 'z').map(ByteString(_))
-        Flow(testInput).toProducer(materializer).produceTo(clientBinding.outputStream)
+        Source(testInput).connect(Sink(clientBinding.outputStream)).run()
 
-        Flow(clientBinding.inputStream).fold(Vector.empty[Char]) { (acc, in) ⇒ acc ++ in.map(_.asInstanceOf[Char]) }.
-          foreach(result => println(s"Result: " + result.mkString("[", ", ", "]"))).
-          onComplete(materializer) {
-            case Success(_) =>
+        Source(clientBinding.inputStream).fold(Vector.empty[Char]) { (acc, in) ⇒ acc ++ in.map(_.asInstanceOf[Char]) }.
+          onComplete {
+            case Success(result) =>
+              println(s"Result: " + result.mkString("[", ", ", "]"))
               println("Shutting down client")
               system.shutdown()
             case Failure(e) =>
