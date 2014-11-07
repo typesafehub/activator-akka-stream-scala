@@ -1,12 +1,14 @@
 package sample.stream
 
-import akka.actor.ActorSystem
-import akka.stream.MaterializerSettings
-import akka.stream.scaladsl2._
 import java.io.{ FileOutputStream, PrintWriter }
+
+import akka.actor.ActorSystem
+import akka.stream.FlowMaterializer
+import akka.stream.scaladsl.{ Broadcast, FlowGraph, ForeachSink, Source }
 
 import scala.concurrent.forkjoin.ThreadLocalRandom
 import scala.util.{ Failure, Success, Try }
+import akka.stream.scaladsl.FlowGraphImplicits
 
 object WritePrimes {
 
@@ -26,26 +28,25 @@ object WritePrimes {
 
     // write to file sink
     val output = new PrintWriter(new FileOutputStream("target/primes.txt"), true)
-    val slowSink = ForeachDrain[Int] { prime =>
+    val slowSink = ForeachSink[Int] { prime =>
       output.println(prime)
       // simulate slow consumer
       Thread.sleep(1000)
     }
 
     // console output sink
-    val consoleSink = ForeachDrain[Int](println)
-
-    import FlowGraphImplicits._
+    val consoleSink = ForeachSink[Int](println)
 
     // send primes to both slow file sink and console sink using graph API
     val materialized = FlowGraph { implicit builder =>
+      import FlowGraphImplicits._
       val broadcast = Broadcast[Int] // the splitter - like a Unix tee
       primeSource ~> broadcast ~> slowSink // connect primes to splitter, and one side to file
       broadcast ~> consoleSink // connect other side of splitter to console
     }.run()
 
     // ensure the output file is closed and the system shutdown upon completion
-    materialized.materializedDrain(slowSink).onComplete {
+    materialized.get(slowSink).onComplete {
       case Success(_) =>
         Try(output.close())
         system.shutdown()
