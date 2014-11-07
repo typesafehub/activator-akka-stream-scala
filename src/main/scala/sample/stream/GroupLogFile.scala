@@ -1,9 +1,10 @@
 package sample.stream
 
 import akka.actor.ActorSystem
-import akka.stream.MaterializerSettings
-import akka.stream.scaladsl2._
 import java.io.{ FileOutputStream, PrintWriter }
+import akka.stream.FlowMaterializer
+import akka.stream.scaladsl.Source
+
 import scala.util.Try
 
 object GroupLogFile {

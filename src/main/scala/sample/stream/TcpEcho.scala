@@ -1,13 +1,15 @@
 package sample.stream
 
+import java.net.InetSocketAddress
+
 import akka.actor.ActorSystem
 import akka.io.IO
 import akka.pattern.ask
-import akka.stream.MaterializerSettings
+import akka.stream.FlowMaterializer
 import akka.stream.io.StreamTcp
-import akka.stream.scaladsl2._
+import akka.stream.scaladsl.{ Sink, Source }
 import akka.util.{ ByteString, Timeout }
-import java.net.InetSocketAddress
+
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
@@ -80,7 +82,7 @@ object TcpEcho {
     clientFuture.onSuccess {
       case clientBinding: StreamTcp.OutgoingTcpConnection =>
         val testInput = ('a' to 'z').map(ByteString(_))
-        Source(testInput).connect(Sink(clientBinding.outputStream)).run()
+        Source(testInput).to(Sink(clientBinding.outputStream)).run()
 
         Source(clientBinding.inputStream).fold(Vector.empty[Char]) { (acc, in) ⇒ acc ++ in.map(_.asInstanceOf[Char]) }.
           onComplete {

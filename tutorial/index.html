@@ -73,7 +73,7 @@ produced into a stream may be discarded by later processors, e.g. when using the
 <p>
 By default every operation is executed within its own <code>Actor</code>
 to enable full pipelining of the chained set of computations. This behavior
-is determined by the <code>akka.stream.scaladsl2.FlowMaterializer</code> which is required
+is determined by the <code>akka.stream.FlowMaterializer</code> which is required
 by those methods that materialize the Flow into a series of
 <code>org.reactivestreams.Processor</code> instances that are started and active.
 Synchronous compaction of steps is possible (but not yet implemented). 
@@ -118,8 +118,8 @@ was over a function that converted, say, String to Int, the result would be a
 
 <p>
 The <code>foreach(println)</code> constructs and attaches a <code>Sink</code>, in
-this case an implementation called <code>ForeachDrain</code> and again this is
-specifically a <code>ForeachDrain[String]</code> which matches the type of the
+this case an implementation called <code>ForeachSink</code> and again this is
+specifically a <code>ForeachSink[String]</code> which matches the type of the
 <code>Source[String]</code>. The result of attaching this matching <code>Sink</code>
 to the <code>Source</code> creates a <code>RunnableFlow</code> which is then also run
 buy the <code>foreach</code> call.
@@ -149,7 +149,7 @@ filter(line => line.length > 3).
 
 <p>
 All stream manipulation operations can be found in the 
-<a href="http://doc.akka.io/api/akka-stream-and-http-experimental/0.9/#akka.stream.scaladsl2.package" target="_blank">API documentation</a>.
+<a href="http://doc.akka.io/api/akka-stream-and-http-experimental/0.10/#akka.stream.scaladsl.package" target="_blank">API documentation</a>.
 </p>
 
 </div>
@@ -249,7 +249,7 @@ and look at the resulting output log files in the
 
 <p>
 Akka Streams also provides a stream based API on top of 
-<a href="http://doc.akka.io/docs/akka/2.3.2/scala/io.html" target="_blank">Akka I/O</a>.
+<a href="http://doc.akka.io/docs/akka/2.3.6/scala/io.html" target="_blank">Akka I/O</a>.
 </p>
 
 <p>
@@ -316,11 +316,11 @@ terminal windows.
 </p>
 
 <pre><code>
-&lt;path to activator dir&gt;/activator "run-main sample.stream.TcpEcho server 0.0.0.0 6001"		
+&lt;path to activator dir&gt;/activator "run-main sample.stream.TcpEcho server 0.0.0.0 6001"
 </code></pre>
 
 <pre><code>
-&lt;path to activator dir&gt;/activator "run-main sample.stream.TcpEcho client 127.0.0.1 6001"		
+&lt;path to activator dir&gt;/activator "run-main sample.stream.TcpEcho client 127.0.0.1 6001"
 </code></pre>
 
 <p>
@@ -340,7 +340,7 @@ Type a few characters in the telnet session and press enter to see them echoed b
 <h2>Links</h2>
 
 <ul>
-<li><a href="http://doc.akka.io/api/akka-stream-and-http-experimental/0.9/#akka.stream.scaladsl2.package" target="_blank">Akka Streams 0.9 API documentation</a></li>
+<li><a href="http://doc.akka.io/api/akka-stream-and-http-experimental/0.10/#akka.stream.scaladsl.package" target="_blank">Akka Streams 0.10 API documentation</a></li>
 <li><a href="http://www.reactive-streams.org/" target="_blank">Reactive Streams</a></li>
 </ul>
 
