@@ -1,15 +1,13 @@
 package sample.stream
 
 import java.net.InetSocketAddress
-
 import akka.actor.ActorSystem
 import akka.io.IO
 import akka.pattern.ask
 import akka.stream.FlowMaterializer
 import akka.stream.io.StreamTcp
-import akka.stream.scaladsl.{ Sink, Source }
-import akka.util.{ ByteString, Timeout }
-
+import akka.stream.scaladsl.{ Flow, ForeachSink, Sink, Source }
+import akka.util.ByteString
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
@@ -48,24 +46,20 @@ object TcpEcho {
   def server(system: ActorSystem, serverAddress: InetSocketAddress): Unit = {
     implicit val sys = system
     import system.dispatcher
-
     implicit val materializer = FlowMaterializer()
-    implicit val timeout = Timeout(5.seconds)
 
-    val serverFuture = IO(StreamTcp) ? StreamTcp.Bind(serverAddress)
-
-    serverFuture.onSuccess {
-      case serverBinding: StreamTcp.TcpServerBinding =>
-        println("Server started, listening on: " + serverBinding.localAddress)
-
-        Source(serverBinding.connectionStream).foreach { conn ⇒
-          println("Client connected from: " + conn.remoteAddress)
-          conn.inputStream.subscribe(conn.outputStream)
-        }
+    val handler = ForeachSink[StreamTcp.IncomingConnection] { conn =>
+      println("Client connected from: " + conn.remoteAddress)
+      conn handleWith Flow[ByteString]
     }
 
-    serverFuture.onFailure {
-      case e: Throwable =>
+    val binding = StreamTcp().bind(serverAddress)
+    val materializedServer = binding.connections.to(handler).run()
+
+    binding.localAddress(materializedServer).onComplete {
+      case Success(address) =>
+        println("Server started, listening on: " + address)
+      case Failure(e) =>
         println(s"Server could not bind to $serverAddress: ${e.getMessage}")
         system.shutdown()
     }
@@ -76,29 +70,19 @@ object TcpEcho {
     implicit val sys = system
     import system.dispatcher
     implicit val materializer = FlowMaterializer()
-    implicit val timeout = Timeout(5.seconds)
 
-    val clientFuture = IO(StreamTcp) ? StreamTcp.Connect(serverAddress)
-    clientFuture.onSuccess {
-      case clientBinding: StreamTcp.OutgoingTcpConnection =>
-        val testInput = ('a' to 'z').map(ByteString(_))
-        Source(testInput).to(Sink(clientBinding.outputStream)).run()
+    val testInput = ('a' to 'z').map(ByteString(_))
 
-        Source(clientBinding.inputStream).fold(Vector.empty[Char]) { (acc, in) ⇒ acc ++ in.map(_.asInstanceOf[Char]) }.
-          onComplete {
-            case Success(result) =>
-              println(s"Result: " + result.mkString("[", ", ", "]"))
-              println("Shutting down client")
-              system.shutdown()
-            case Failure(e) =>
-              println("Failure: " + e.getMessage)
-              system.shutdown()
-          }
-    }
+    val result = Source(testInput).via(StreamTcp().outgoingConnection(serverAddress).flow).
+      fold(Vector.empty[Char]) { (acc, in) ⇒ acc ++ in.map(_.asInstanceOf[Char]) }
 
-    clientFuture.onFailure {
-      case e: Throwable =>
-        println(s"Client could not connect to $serverAddress: ${e.getMessage}")
+    result.onComplete {
+      case Success(result) =>
+        println(s"Result: " + result.mkString("[", ", ", "]"))
+        println("Shutting down client")
+        system.shutdown()
+      case Failure(e) =>
+        println("Failure: " + e.getMessage)
         system.shutdown()
     }
   }

@@ -20,7 +20,7 @@ object WritePrimes {
     // generate random numbers
     val maxRandomNumberSize = 1000000
     val primeSource: Source[Int] =
-      Source(() => Some(ThreadLocalRandom.current().nextInt(maxRandomNumberSize))).
+      Source(() => Iterator.continually(ThreadLocalRandom.current().nextInt(maxRandomNumberSize))).
         // filter prime numbers
         filter(rnd => isPrime(rnd)).
         // and neighbor +2 is also prime
