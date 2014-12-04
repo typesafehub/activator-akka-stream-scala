@@ -22,7 +22,7 @@ object GroupLogFile {
     // read lines from a log file
     val logFile = io.Source.fromFile("src/main/resources/logfile.txt", "utf-8")
 
-    Source(logFile.getLines()).
+    Source(() => logFile.getLines()).
       // group them by log level
       groupBy {
         case LoglevelPattern(level) => level

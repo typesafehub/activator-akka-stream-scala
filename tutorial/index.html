@@ -149,7 +149,7 @@ filter(line => line.length > 3).
 
 <p>
 All stream manipulation operations can be found in the 
-<a href="http://doc.akka.io/api/akka-stream-and-http-experimental/0.10/#akka.stream.scaladsl.package" target="_blank">API documentation</a>.
+<a href="http://doc.akka.io/api/akka-stream-and-http-experimental/1.0-M1/#akka.stream.scaladsl.package" target="_blank">API documentation</a>.
 </p>
 
 </div>
@@ -249,7 +249,7 @@ and look at the resulting output log files in the
 
 <p>
 Akka Streams also provides a stream based API on top of 
-<a href="http://doc.akka.io/docs/akka/2.3.6/scala/io.html" target="_blank">Akka I/O</a>.
+<a href="http://doc.akka.io/docs/akka/2.3.7/scala/io.html" target="_blank">Akka I/O</a>.
 </p>
 
 <p>
@@ -262,22 +262,21 @@ both client and server in the same JVM and the client connects to the server ove
 </p>
 
 <p>
-The server is started by sending a <code>StreamTcp.Bind</code> message to the actor provided by the
-<code>akka.stream.io.StreamIO</code> extension. It receives a <code>StreamTcp.TcpServerBinding</code>
-message as reply. Each new client connection is represented by a new <code>IncomingTcpConnection</code>
-element in the <code>connectionStream</code> <code>Publisher[IncomingTcpConnection]</code>. From the 
-connection the server can operate on the <code>inputStream: Publisher[ByteString]</code> and 
-<code>outputStream: Subscriber[ByteString]</code>.
+The server is started by calling <code>bind</code> on the <code>akka.stream.io.StreamTcp</code> extension.
+It returns a <code>StreamTcp.ServerBinding</code>.
+Each new client connection is represented by a new <code>IncomingTcpConnection</code>
+element produced by the <code>connections</code> <code>Source[StreamTcp.IncomingConnection]</code> of the 
+<code>ServerBinding</code>. From the connection the server can operate on the <code>ByteString</code> 
+elements.
 </p>
 
 <p>
 In this sample the server sends back the same bytes as it receives.
 </p>
 <pre><code>
-Source(clientBinding.inputStream).connect(Sink(clientBinding.outputStream))
+conn handleWith Flow[ByteString]
 </code></pre>
-Where <code>Source(inStream)</code> constructs a Source from the <code>Publisher</code> and
-<code>Sink(inStream)</code> constructs a Sink from the <code>Subscriber</code>.
+
 </p>
 
 <p>
@@ -285,18 +284,20 @@ You can add transformation of the bytes using a <code>Flow</code>. For example c
 upper case.
 </p>
 <pre><code>
-Source(testInput).
-  map(byteStr => byteStr.map(_.toChar.toUpper.asInstanceOf[Byte])).
-  connect(Sink(clientBinding.outputStream)).run()
+conn.handleWith(Flow[ByteString].
+  map(byteStr => byteStr.map(_.toChar.toUpper.asInstanceOf[Byte])))
 </code></pre>
 
 <p>
-The connection from the client is established by sending a <code>StreamTcp.Connect</code> message to the actor
-provided by the <code>akka.io.IO</code> extension. It receives a 
-<code>StreamTcp.OutgoingTcpConnection</code> message as reply and from that it can write
-data to the <code>outputStream</code> <code>Subscriber[ByteString]</code>.
-The client can read the response from the server via the <code>inputStream</code> <code>Publisher[ByteString]</code>.
+The connection from the client is established by calling <code>outgoingConnection</code> on the
+<code>akka.stream.io.StreamTcp</code> extension and attaching corresponding flow to input
+<code>Source<code/> and output <code>Sink</code>.
 </p>
+
+<pre><code>
+Source(testInput).via(StreamTcp().outgoingConnection(serverAddress).flow).
+  fold(Vector.empty[Char]) { (acc, in) ⇒ acc ++ in.map(_.asInstanceOf[Char]) }
+</code></pre>
 
 <p>
 In this sample the client sends a sequence of characters one-by-one to the server, aggregates the replies
@@ -340,7 +341,7 @@ Type a few characters in the telnet session and press enter to see them echoed b
 <h2>Links</h2>
 
 <ul>
-<li><a href="http://doc.akka.io/api/akka-stream-and-http-experimental/0.10/#akka.stream.scaladsl.package" target="_blank">Akka Streams 0.10 API documentation</a></li>
+<li><a href="http://doc.akka.io/api/akka-stream-and-http-experimental/1.0-M1/#akka.stream.scaladsl.package" target="_blank">Akka Streams 1.0-M1 API documentation</a></li>
 <li><a href="http://www.reactive-streams.org/" target="_blank">Reactive Streams</a></li>
 </ul>
 
