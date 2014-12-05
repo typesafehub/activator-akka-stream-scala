@@ -284,8 +284,8 @@ You can add transformation of the bytes using a <code>Flow</code>. For example c
 upper case.
 </p>
 <pre><code>
-conn.handleWith(Flow[ByteString].
-  map(byteStr => byteStr.map(_.toChar.toUpper.asInstanceOf[Byte])))
+val toUpper = Flow[ByteString].map(b => ByteString.fromString(b.utf8String.toUpperCase()))
+conn handleWith toUpper
 </code></pre>
 
 <p>
@@ -295,13 +295,13 @@ The connection from the client is established by calling <code>outgoingConnectio
 </p>
 
 <pre><code>
-Source(testInput).via(StreamTcp().outgoingConnection(serverAddress).flow).
-  fold(Vector.empty[Char]) { (acc, in) ⇒ acc ++ in.map(_.asInstanceOf[Char]) }
+val result = Source(testInput).via(StreamTcp().outgoingConnection(serverAddress).flow).
+  fold(ByteString.empty) { (acc, in) ⇒ acc ++ in }
 </code></pre>
 
 <p>
 In this sample the client sends a sequence of characters one-by-one to the server, aggregates the replies
-into a collection, and finally prints the contents of this collection.   
+into a single <code>ByteString</code>, and finally prints that.   
 </p>
 
 <p>

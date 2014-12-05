@@ -74,11 +74,11 @@ object TcpEcho {
     val testInput = ('a' to 'z').map(ByteString(_))
 
     val result = Source(testInput).via(StreamTcp().outgoingConnection(serverAddress).flow).
-      fold(Vector.empty[Char]) { (acc, in) ⇒ acc ++ in.map(_.asInstanceOf[Char]) }
+      fold(ByteString.empty) { (acc, in) ⇒ acc ++ in }
 
     result.onComplete {
       case Success(result) =>
-        println(s"Result: " + result.mkString("[", ", ", "]"))
+        println(s"Result: " + result.utf8String)
         println("Shutting down client")
         system.shutdown()
       case Failure(e) =>
