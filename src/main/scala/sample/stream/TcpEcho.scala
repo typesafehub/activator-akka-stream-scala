@@ -2,11 +2,9 @@ package sample.stream
 
 import java.net.InetSocketAddress
 import akka.actor.ActorSystem
-import akka.io.IO
 import akka.pattern.ask
 import akka.stream.FlowMaterializer
-import akka.stream.io.StreamTcp
-import akka.stream.scaladsl.{ Flow, ForeachSink, Sink, Source }
+import akka.stream.scaladsl.{ Flow, ForeachSink, Sink, Source, StreamTcp }
 import akka.util.ByteString
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
