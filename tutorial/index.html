@@ -262,7 +262,7 @@ both client and server in the same JVM and the client connects to the server ove
 </p>
 
 <p>
-The server is started by calling <code>bind</code> on the <code>akka.stream.io.StreamTcp</code> extension.
+The server is started by calling <code>bind</code> on the <code>akka.stream.scaladsl.StreamTcp</code> extension.
 It returns a <code>StreamTcp.ServerBinding</code>.
 Each new client connection is represented by a new <code>IncomingTcpConnection</code>
 element produced by the <code>connections</code> <code>Source[StreamTcp.IncomingConnection]</code> of the 
@@ -290,7 +290,7 @@ conn handleWith toUpper
 
 <p>
 The connection from the client is established by calling <code>outgoingConnection</code> on the
-<code>akka.stream.io.StreamTcp</code> extension and attaching corresponding flow to input
+<code>akka.stream.scaladsl.StreamTcp</code> extension and attaching corresponding flow to input
 <code>Source<code/> and output <code>Sink</code>.
 </p>
 
