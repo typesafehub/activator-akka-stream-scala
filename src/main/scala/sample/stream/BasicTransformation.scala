@@ -1,7 +1,7 @@
 package sample.stream
 
 import akka.actor.ActorSystem
-import akka.stream.FlowMaterializer
+import akka.stream.ActorFlowMaterializer
 import akka.stream.scaladsl.Source
 
 object BasicTransformation {
@@ -10,7 +10,7 @@ object BasicTransformation {
     implicit val system = ActorSystem("Sys")
     import system.dispatcher
 
-    implicit val materializer = FlowMaterializer()
+    implicit val materializer = ActorFlowMaterializer()
 
     val text =
       """|Lorem Ipsum is simply dummy text of the printing and typesetting industry.
@@ -20,7 +20,7 @@ object BasicTransformation {
 
     Source(() => text.split("\\s").iterator).
       map(_.toUpperCase).
-      foreach(println).
+      runForeach(println).
       onComplete(_ => system.shutdown())
 
     // could also use .runWith(ForeachSink(println)) instead of .foreach(println) above

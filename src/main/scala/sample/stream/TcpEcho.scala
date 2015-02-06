@@ -3,7 +3,7 @@ package sample.stream
 import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.pattern.ask
-import akka.stream.FlowMaterializer
+import akka.stream.ActorFlowMaterializer
 import akka.stream.scaladsl.{ Flow, ForeachSink, Sink, Source, StreamTcp }
 import akka.util.ByteString
 import scala.concurrent.duration._
@@ -44,7 +44,7 @@ object TcpEcho {
   def server(system: ActorSystem, serverAddress: InetSocketAddress): Unit = {
     implicit val sys = system
     import system.dispatcher
-    implicit val materializer = FlowMaterializer()
+    implicit val materializer = ActorFlowMaterializer()
 
     val handler = ForeachSink[StreamTcp.IncomingConnection] { conn =>
       println("Client connected from: " + conn.remoteAddress)
@@ -67,12 +67,12 @@ object TcpEcho {
   def client(system: ActorSystem, serverAddress: InetSocketAddress): Unit = {
     implicit val sys = system
     import system.dispatcher
-    implicit val materializer = FlowMaterializer()
+    implicit val materializer = ActorFlowMaterializer()
 
     val testInput = ('a' to 'z').map(ByteString(_))
 
     val result = Source(testInput).via(StreamTcp().outgoingConnection(serverAddress).flow).
-      fold(ByteString.empty) { (acc, in) ⇒ acc ++ in }
+      runFold(ByteString.empty) { (acc, in) ⇒ acc ++ in }
 
     result.onComplete {
       case Success(result) =>
