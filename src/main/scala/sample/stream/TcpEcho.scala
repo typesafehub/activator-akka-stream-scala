@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.stream.ActorFlowMaterializer
-import akka.stream.scaladsl.{ Flow, ForeachSink, Sink, Source, StreamTcp }
+import akka.stream.scaladsl.{ Flow, Sink, Source, StreamTcp }
 import akka.util.ByteString
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
@@ -46,17 +46,17 @@ object TcpEcho {
     import system.dispatcher
     implicit val materializer = ActorFlowMaterializer()
 
-    val handler = ForeachSink[StreamTcp.IncomingConnection] { conn =>
+    val handler = Sink.foreach[StreamTcp.IncomingConnection] { conn =>
       println("Client connected from: " + conn.remoteAddress)
       conn handleWith Flow[ByteString]
     }
 
-    val binding = StreamTcp().bind(serverAddress)
-    val materializedServer = binding.connections.to(handler).run()
+    val connections = StreamTcp().bind(serverAddress)
+    val binding = connections.to(handler).run()
 
-    binding.localAddress(materializedServer).onComplete {
-      case Success(address) =>
-        println("Server started, listening on: " + address)
+    binding.onComplete {
+      case Success(b) =>
+        println("Server started, listening on: " + b.localAddress)
       case Failure(e) =>
         println(s"Server could not bind to $serverAddress: ${e.getMessage}")
         system.shutdown()
@@ -71,7 +71,7 @@ object TcpEcho {
 
     val testInput = ('a' to 'z').map(ByteString(_))
 
-    val result = Source(testInput).via(StreamTcp().outgoingConnection(serverAddress).flow).
+    val result = Source(testInput).via(StreamTcp().outgoingConnection(serverAddress)).
       runFold(ByteString.empty) { (acc, in) ⇒ acc ++ in }
 
     result.onComplete {

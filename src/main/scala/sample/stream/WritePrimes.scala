@@ -4,11 +4,10 @@ import java.io.{ FileOutputStream, PrintWriter }
 
 import akka.actor.ActorSystem
 import akka.stream.ActorFlowMaterializer
-import akka.stream.scaladsl.{ Broadcast, FlowGraph, ForeachSink, Source }
+import akka.stream.scaladsl.{ Broadcast, FlowGraph, Sink, Source }
 
 import scala.concurrent.forkjoin.ThreadLocalRandom
 import scala.util.{ Failure, Success, Try }
-import akka.stream.scaladsl.FlowGraphImplicits
 
 object WritePrimes {
 
@@ -19,7 +18,7 @@ object WritePrimes {
 
     // generate random numbers
     val maxRandomNumberSize = 1000000
-    val primeSource: Source[Int] =
+    val primeSource: Source[Int, Unit] =
       Source(() => Iterator.continually(ThreadLocalRandom.current().nextInt(maxRandomNumberSize))).
         // filter prime numbers
         filter(rnd => isPrime(rnd)).
@@ -28,25 +27,26 @@ object WritePrimes {
 
     // write to file sink
     val output = new PrintWriter(new FileOutputStream("target/primes.txt"), true)
-    val slowSink = ForeachSink[Int] { prime =>
+    val slowSink = Sink.foreach[Int] { prime =>
       output.println(prime)
       // simulate slow consumer
       Thread.sleep(1000)
     }
 
     // console output sink
-    val consoleSink = ForeachSink[Int](println)
+    val consoleSink = Sink.foreach[Int](println)
 
     // send primes to both slow file sink and console sink using graph API
-    val materialized = FlowGraph { implicit builder =>
-      import FlowGraphImplicits._
-      val broadcast = Broadcast[Int] // the splitter - like a Unix tee
-      primeSource ~> broadcast ~> slowSink // connect primes to splitter, and one side to file
-      broadcast ~> consoleSink // connect other side of splitter to console
+    val materialized = FlowGraph.closed(slowSink, consoleSink)((slow, _) => slow) { implicit builder =>
+      (slow, console) =>
+        import FlowGraph.Implicits._
+        val broadcast = builder.add(Broadcast[Int](2)) // the splitter - like a Unix tee
+        primeSource ~> broadcast ~> slow // connect primes to splitter, and one side to file
+        broadcast ~> console // connect other side of splitter to console
     }.run()
 
     // ensure the output file is closed and the system shutdown upon completion
-    materialized.get(slowSink).onComplete {
+    materialized.onComplete {
       case Success(_) =>
         Try(output.close())
         system.shutdown()
