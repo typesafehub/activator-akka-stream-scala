@@ -1,9 +1,11 @@
 package sample.stream
 
 import akka.actor.ActorSystem
-import java.io.{ FileOutputStream, PrintWriter }
+import java.io.File
 import akka.stream.ActorFlowMaterializer
-import akka.stream.scaladsl.Source
+import akka.stream.io.Implicits._
+import akka.stream.scaladsl._
+import akka.util.ByteString
 
 import scala.util.Try
 
@@ -12,10 +14,10 @@ object GroupLogFile {
   def main(args: Array[String]): Unit = {
     // actor system and implicit materializer
     implicit val system = ActorSystem("Sys")
+    implicit val materializer = ActorFlowMaterializer()
+
     // execution context
     import system.dispatcher
-
-    implicit val materializer = ActorFlowMaterializer()
 
     val LoglevelPattern = """.*\[(DEBUG|INFO|WARN|ERROR)\].*""".r
 
@@ -29,16 +31,13 @@ object GroupLogFile {
         case other                  => "OTHER"
       }.
       // write lines of each group to a separate file
-      runForeach {
+      mapAsync(parallelism = 4, {
         case (level, groupFlow) =>
-          val output = new PrintWriter(new FileOutputStream(s"target/log-$level.txt"), true)
-          // close resource when the group stream is completed
-          // foreach returns a future that we can key the close() off of
-          groupFlow.runForeach(line => output.println(line)).onComplete(_ => Try(output.close()))
-      }.
-      onComplete { _ =>
+          groupFlow.map(line => ByteString(line + "\n")).runWith(Sink.synchronousFile(new File(s"target/log-$level.txt")))
+      }).
+      runWith(Sink.onComplete { _ =>
         Try(logFile.close())
         system.shutdown()
-      }
+      })
   }
 }
