@@ -7,7 +7,7 @@ version := "1.1"
 scalaVersion := "2.11.6"
 
 libraryDependencies ++= Seq(
-  "com.typesafe.akka" %% "akka-stream-experimental" % "1.0-M5"
+  "com.typesafe.akka" %% "akka-stream-experimental" % "1.0-RC1"
 )
 
 scalariformSettings
@@ -17,3 +17,6 @@ ScalariformKeys.preferences := ScalariformKeys.preferences.value
   .setPreference(AlignSingleLineCaseStatements.MaxArrowIndent, 100)
   .setPreference(DoubleIndentClassDeclaration, true)
   .setPreference(PreserveDanglingCloseParenthesis, true)
+
+
+fork in run := true

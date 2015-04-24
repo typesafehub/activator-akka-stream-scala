@@ -5,12 +5,14 @@
 <body>
 
 <div>
+<h2>Introduction</h2>
+
 <p>
 This tutorial contains a few samples that demonstrates Akka Streams.
 </p>
 
 <p>
-Akka Streams is an implementation of 
+Akka Streams is an implementation of
 <a href="http://www.reactive-streams.org/" target="_blank">Reactive Streams</a>,
 which is a standard for asynchronous stream processing with non-blocking backpressure.
 Akka Streams is interoperable with other Reactive Streams implementations.
@@ -33,23 +35,24 @@ batching, buffering, thread-safety are handled behind the scenes.
 The processing steps are declared with a DSL, a so called <code>Flow</code>.
 A <code>Flow</code> may be connected to a <code>Source</code> and/or a
 <code>Sink</code>. It may also exist without either of these end points, as an
-"open" flow. Any open flow when connected to a <code>Source</code> itself becomes a 
+"open" flow. Any open flow when connected to a <code>Source</code> itself becomes a
 <code>Source</code> and likewise when connected to a <code>Sink</code> becomes a
-<code>Sink</code>. A <code>Flow</code> with both a <code>Source</code> and
+<code>Sink</code>. A <code>Flow</code> with both a <code>Source</code> and a
 <code>Sink</code> is called a <code>RunnableFlow</code> and may be executed.
 </p>
-<p> 
-The <code>Source</code> and can be constructed from a 
-collection, an iterator, a future, or a function 
-which is evaluated repeatedly. 
+
+<p>
+The <code>Source</code> can be constructed from a collection, an iterator,
+a future, or a function which is evaluated repeatedly.
 </p>
 
 <p>
 Each DSL element produces a new Flow that can be further transformed, building
 up a description of the complete transformation pipeline. In order to execute
 this pipeline the <code>Flow</code> must be runnable (have both <code>Source</code>
-and <code>Sink</code> endpoints, and  is materialized by calling one of the execution
-methods which include <code>.run</code>, <code>.runWith</code> and <code>.runForeach</code>.
+and <code>Sink</code> endpoints, and is materialized by calling one of the execution
+methods which include <code>.run</code>, <code>.runWith</code>, <code>.runForeach</code>
+and <code>.runFold</code>.
 </p>
 
 <p>
@@ -73,10 +76,10 @@ produced into a stream may be discarded by later processors, e.g. when using the
 <p>
 By default every operation is executed within its own <code>Actor</code>
 to enable full pipelining of the chained set of computations. This behavior
-is determined by the <code>akka.stream.FlowMaterializer</code> which is required
+is determined by the <code>akka.stream.ActorFlowMaterializer</code> which is required
 by those methods that materialize the Flow into a series of
 <code>org.reactivestreams.Processor</code> instances that are started and active.
-Synchronous compaction of steps is possible (but not yet implemented). 
+Synchronous compaction of steps is possible (but not yet implemented).
 </p>
 
 </div>
@@ -88,15 +91,21 @@ What does a <code>Flow</code> look like?
 </p>
 
 <p>
-Open <a href="#code/src/main/scala/sample/stream/BasicTransformation.scala" class="shortcut">BasicTransformation.scala</a>  
+Open <a href="#code/src/main/scala/sample/stream/BasicTransformation.scala" class="shortcut">BasicTransformation.scala</a>
 </p>
 
 <p>
 Here we use an <code>Iterator</code> over the Array produced by splitting the text
-using the spaces, as input producer; 
+using the spaces, as input producer;
 note that the iterator is an <code>Iterator[String]</code> and this produces
-a <code>Source[String]</code>. The flow written to use this <code>Source</code>
-must match the type, so we could not treat the source as a source of <code>Int</code>
+a <code>Source[String, Unit]</code>. The first type parameter is the type of the
+elements that this source is producing. Second type parameter is the
+type of the materialized value of this source. A value of this type will be returned
+after materialization when calling any of <code>run*</code> methods. In this case materialized
+value has a type of <code>Unit</code> which means no value will be materialized.
+
+<p>The flow written to use this source
+must match the the first type parameter, so we could not treat the source as a source of <code>Int</code>
 for example.
 </p>
 
@@ -108,33 +117,31 @@ to the console. This is done in the lines <code>map(_.toUpperCase)</code> and
 
 <p>
 The <code>map(_.toUpperCase)</code> takes Strings and produces
-Strings. Behind the scenes, this constructs a <code>Transformer[String, String]</code> 
-which is itself a <code>Flow</code>
-When this is attached to the <code>Source[String]</code>, the result is
-a new <code>Flow</code> that is also a <code>Source[String]</code>. If the map
-was over a function that converted, say, String to Int, the result would be a
-<code>Source[Int]</code> when attaching it to this <code>Source[String]</code>. 
+Strings. When this is attached to the <code>Source[String, Unit]</code>, the result is
+a new <code>Flow</code> that is also a <code>Source[String, Unit]</code>. If the map
+was over a function that converted, say, <code>String</code> to <code>Int</code>, the result would be a
+<code>Source[Int, Unit]</code> when attaching it to this <code>Source[String, Unit]</code>.
 </p>
 
 <p>
 The <code>runForeach(println)</code> constructs and attaches a <code>Sink</code>, in
-this case an implementation called <code>ForeachSink</code> and again this is
-specifically a <code>ForeachSink[String]</code> which matches the type of the
-<code>Source[String]</code>. The result of attaching this matching <code>Sink</code>
+this case an implementation called <code>Sink.foreach</code> and again this is
+specifically a <code>Sink[String, Unit]</code> which matches the first type parameter of the
+<code>Source[String, Unit]</code>. The result of attaching this matching <code>Sink</code>
 to the <code>Source</code> creates a <code>RunnableFlow</code> which is then also run
-buy the <code>runForeach</code> call.
+by the <code>runForeach</code> call.
 </p>
 
-<p>Unlike a <code>foreach</code> on a collection (which returns <code>Unit</code>), 
+<p>Unlike a <code>foreach</code> on a collection (which returns <code>Unit</code>),
 the <code>runForeach</code> on a Flow returns a <code>Future[Unit]</code> instead. Because
 we get a <code>Future</code> back, we can use it to shutdown the actor system once the
-flow is completed. This is accomplished by the final line in the flow: 
+flow is completed. This is accomplished by the final line in the flow:
 <code>onComplete(_ => system.shutdown())</code>
 
 <p>
 Try to run the <code>sample.stream.BasicTransformation</code> class
-by selecting it in the 'Main class' menu in the <a href="#run" class="shortcut">Run</a> tab
-and click the 'Start' button.
+by selecting it in the 'Main file' menu in the <a href="#run" class="shortcut">Run</a> tab
+and click the 'Run' button.
 </p>
 
 <p>
@@ -148,8 +155,8 @@ filter(line => line.length > 3).
 <p>The API is intended to be familiar to anyone used to the collections API in Scala.</p>
 
 <p>
-All stream manipulation operations can be found in the 
-<a href="http://doc.akka.io/api/akka-stream-and-http-experimental/1.0-M1/#akka.stream.scaladsl.package" target="_blank">API documentation</a>.
+All stream manipulation operations can be found in the
+<a href="http://doc.akka.io/api/akka-stream-and-http-experimental/1.0-RC1/#akka.stream.scaladsl.package" target="_blank">API documentation</a>.
 </p>
 
 </div>
@@ -157,18 +164,18 @@ All stream manipulation operations can be found in the
 <h2>Backpressure</h2>
 
 <p>
-The mandatory non-blocking backpressure is a key feature of 
-<a href="http://www.reactive-streams.org/" target="_blank">Reactive Streams</a>. 
+The mandatory non-blocking backpressure is a key feature of
+<a href="http://www.reactive-streams.org/" target="_blank">Reactive Streams</a>.
 </p>
 
 <p>
-Open <a href="#code/src/main/scala/sample/stream/WritePrimes.scala" class="shortcut">WritePrimes.scala</a>  
+Open <a href="#code/src/main/scala/sample/stream/WritePrimes.scala" class="shortcut">WritePrimes.scala</a>
 </p>
 
 <p>
 In this sample we use a fast producer and several consumers, with potentially different throughput capacity.
-To avoid out of memory problems it is important that the producer does not generate elements faster than 
-what can be consumed. Also the speed of the slowest consumer must be taken into account to avoid 
+To avoid out of memory problems it is important that the producer does not generate elements faster than
+what can be consumed. Also the speed of the slowest consumer must be taken into account to avoid
 unbounded buffering in intermediate steps.
 </p>
 
@@ -178,8 +185,8 @@ evaluated repeatedly. It can generate elements very fast if needed.
 </p>
 
 <p>
-We filter the numbers through two prime number checks and end up with a stream of 
-prime numbers, which neighbor +2 number is also a prime number. These two flow filter steps 
+We filter the numbers through two prime number checks and end up with a stream of
+prime numbers, which neighbor +2 number is also a prime number. These two flow filter steps
 can potentially be pipelined, i.e. executed in parallel.
 </p>
 
@@ -191,8 +198,8 @@ sleep.
 
 <p>
 Try to run the <code>sample.stream.WritePrimes</code> class
-by selecting it in the 'Main class' menu in the <a href="#run" class="shortcut">Run</a> tab
-and click the 'Start' button.
+by selecting it in the 'Main file' menu in the <a href="#run" class="shortcut">Run</a> tab
+and click the 'Run' button.
 </p>
 
 <p>
@@ -214,12 +221,12 @@ Let us take a look at an example of more advanced stream manipulation.
 </p>
 
 <p>
-Open <a href="#code/src/main/scala/sample/stream/GroupLogFile.scala" class="shortcut">GroupLogFile.scala</a>  
+Open <a href="#code/src/main/scala/sample/stream/GroupLogFile.scala" class="shortcut">GroupLogFile.scala</a>
 </p>
 
 <p>
 We want to read a log file and pipe entries of different log level to separate files.
-For this the <code>groupBy</code> operator is useful. It demultiplexes the incoming 
+For this the <code>groupBy</code> operator is useful. It demultiplexes the incoming
 flow into separate source flows, one for each element key. The key is computed for
 each element using the given function. When a new key is encountered for the first time
 it is emitted to the downstream consumer together with a fresh producer that will eventually
@@ -233,8 +240,8 @@ write the elements of each group to a separate file.
 
 <p>
 Try to run the <code>sample.stream.GroupLogFile</code> class
-by selecting it in the 'Main class' menu in the <a href="#run" class="shortcut">Run</a> tab
-and click the 'Start' button.
+by selecting it in the 'Main file' menu in the <a href="#run" class="shortcut">Run</a> tab
+and click the 'Run' button.
 </p>
 
 <p>
@@ -242,18 +249,18 @@ Open the input <a href="#code/src/main/resources/logfile.txt" class="shortcut">l
 and look at the resulting output log files in the
 <a href="#code/target" class="shortcut">target</a> directory.
 </p>
-   
+
 </div>
 <div>
 <h2>TCP Stream</h2>
 
 <p>
-Akka Streams also provides a stream based API on top of 
-<a href="http://doc.akka.io/docs/akka/2.3.9/scala/io.html" target="_blank">Akka I/O</a>.
+Akka Streams also provides a stream based API on top of
+<a href="http://doc.akka.io/docs/akka/2.3.10/scala/io.html" target="_blank">Akka I/O</a>.
 </p>
 
 <p>
-Open <a href="#code/src/main/scala/sample/stream/TcpEcho.scala" class="shortcut">TcpEcho.scala</a>  
+Open <a href="#code/src/main/scala/sample/stream/TcpEcho.scala" class="shortcut">TcpEcho.scala</a>
 </p>
 
 <p>
@@ -262,75 +269,74 @@ both client and server in the same JVM and the client connects to the server ove
 </p>
 
 <p>
-The server is started by calling <code>bind</code> on the <code>akka.stream.scaladsl.StreamTcp</code> extension.
-It returns a <code>StreamTcp.ServerBinding</code>.
-Each new client connection is represented by a new <code>IncomingTcpConnection</code>
-element produced by the <code>connections</code> <code>Source[StreamTcp.IncomingConnection]</code> of the 
-<code>ServerBinding</code>. From the connection the server can operate on the <code>ByteString</code> 
-elements.
+The server is started by calling <code>bind</code> on the <code>akka.stream.scaladsl.Tcp</code> extension.
+It returns a <code>Source[Tcp.IncomingConnection, Future[StreamTcp.ServerBinding]]</code>.
+Each new client connection is represented by a new <code>IncomingConnection</code>
+element produced by the source. From the connection the server can operate on the <code>ByteString</code>
+elements. This source materializes to a future that is completed with a <code>ServerBinding</code>
+when server starts listening on a given address.
 </p>
 
 <p>
 In this sample the server sends back the same bytes as it receives.
 </p>
-<pre><code>
-conn handleWith Flow[ByteString]
-</code></pre>
-
+<pre>
+<code>conn handleWith Flow[ByteString]</code>
+</pre>
 </p>
 
 <p>
 You can add transformation of the bytes using a <code>Flow</code>. For example convert characters to
 upper case.
 </p>
-<pre><code>
-val toUpper = Flow[ByteString].map(b => ByteString.fromString(b.utf8String.toUpperCase()))
-conn handleWith toUpper
-</code></pre>
+<pre>
+<code>val toUpper = Flow[ByteString].map(b => ByteString.fromString(b.utf8String.toUpperCase()))
+ conn handleWith toUpper</code>
+</pre>
 
 <p>
 The connection from the client is established by calling <code>outgoingConnection</code> on the
-<code>akka.stream.scaladsl.StreamTcp</code> extension and attaching corresponding flow to input
-<code>Source<code/> and output <code>Sink</code>.
+<code>akka.stream.scaladsl.Tcp</code> extension and attaching corresponding source and a sink to
+the returned flow.
 </p>
 
-<pre><code>
-val result = Source(testInput).via(StreamTcp().outgoingConnection(serverAddress).flow).
-  runFold(ByteString.empty) { (acc, in) ⇒ acc ++ in }
-</code></pre>
+<pre>
+<code>val result = Source(testInput).via(Tcp().outgoingConnection(address, port)).
+ runFold(ByteString.empty) { (acc, in) ⇒ acc ++ in }</code>
+</pre>
 
 <p>
 In this sample the client sends a sequence of characters one-by-one to the server, aggregates the replies
-into a single <code>ByteString</code>, and finally prints that.   
+into a single <code>ByteString</code>, and finally prints that.
 </p>
 
 <p>
 Try to run the <code>sample.stream.TcpEcho</code> class
-by selecting it in the 'Main class' menu in the <a href="#run" class="shortcut">Run</a> tab
-and click the 'Start' button.
+by selecting it in the 'Main file' menu in the <a href="#run" class="shortcut">Run</a> tab
+and click the 'Run' button.
 </p>
 
 <p>
 That runs the client and server in the same JVM process. It can be more
-interesting to run them in separate processes. Run the following commands in separate 
+interesting to run them in separate processes. Run the following commands in separate
 terminal windows.
 </p>
 
-<pre><code>
-&lt;path to activator dir&gt;/activator "run-main sample.stream.TcpEcho server 0.0.0.0 6001"
-</code></pre>
+<pre>
+<code>&lt;path to activator dir&gt;/activator "run-main sample.stream.TcpEcho server 0.0.0.0 6001"</code>
+</pre>
 
-<pre><code>
-&lt;path to activator dir&gt;/activator "run-main sample.stream.TcpEcho client 127.0.0.1 6001"
-</code></pre>
+<pre>
+<code>&lt;path to activator dir&gt;/activator "run-main sample.stream.TcpEcho client 127.0.0.1 6001"</code>
+</pre>
 
 <p>
 You can also interact with the server with telnet:
 </p>
 
-<pre><code>
-telnet 127.0.0.1 6001
-</code></pre>
+<pre>
+<code>telnet 127.0.0.1 6001</code>
+</pre>
 
 <p>
 Type a few characters in the telnet session and press enter to see them echoed back to the terminal.
@@ -341,7 +347,7 @@ Type a few characters in the telnet session and press enter to see them echoed b
 <h2>Links</h2>
 
 <ul>
-<li><a href="http://doc.akka.io/api/akka-stream-and-http-experimental/1.0-M1/#akka.stream.scaladsl.package" target="_blank">Akka Streams 1.0-M1 API documentation</a></li>
+<li><a href="http://doc.akka.io/api/akka-stream-and-http-experimental/1.0-RC1/#akka.stream.scaladsl.package" target="_blank">Akka Streams 1.0-RC1 API documentation</a></li>
 <li><a href="http://www.reactive-streams.org/" target="_blank">Reactive Streams</a></li>
 </ul>
 
