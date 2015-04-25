@@ -31,7 +31,7 @@ object GroupLogFile {
         case other                  => "OTHER"
       }.
       // write lines of each group to a separate file
-      mapAsync(parallelism = 4, {
+      mapAsync(parallelism = 5, {
         case (level, groupFlow) =>
           groupFlow.map(line => ByteString(line + "\n")).runWith(Sink.synchronousFile(new File(s"target/log-$level.txt")))
       }).
