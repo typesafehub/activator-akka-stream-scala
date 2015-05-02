@@ -1,7 +1,8 @@
 package sample.stream
 
-import akka.actor.ActorSystem
 import java.io.File
+
+import akka.actor.ActorSystem
 import akka.stream.ActorFlowMaterializer
 import akka.stream.io.Implicits._
 import akka.stream.scaladsl._
@@ -31,10 +32,10 @@ object GroupLogFile {
         case other                  => "OTHER"
       }.
       // write lines of each group to a separate file
-      mapAsync(parallelism = 5, {
+      mapAsync(parallelism = 5) {
         case (level, groupFlow) =>
           groupFlow.map(line => ByteString(line + "\n")).runWith(Sink.synchronousFile(new File(s"target/log-$level.txt")))
-      }).
+      }.
       runWith(Sink.onComplete { _ =>
         Try(logFile.close())
         system.shutdown()
