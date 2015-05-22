@@ -1,13 +1,14 @@
 package sample.stream
 
-import java.io.{ FileOutputStream, PrintWriter }
+import java.io.File
 
 import akka.actor.ActorSystem
 import akka.stream.ActorFlowMaterializer
-import akka.stream.scaladsl.{ Broadcast, FlowGraph, Sink, Source }
+import akka.stream.scaladsl._
+import akka.util.ByteString
 
 import scala.concurrent.forkjoin.ThreadLocalRandom
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success}
 
 object WritePrimes {
 
@@ -26,12 +27,12 @@ object WritePrimes {
         filter(prime => isPrime(prime + 2))
 
     // write to file sink
-    val output = new PrintWriter(new FileOutputStream("target/primes.txt"), true)
-    val slowSink = Sink.foreach[Int] { prime =>
-      output.println(prime)
-      // simulate slow consumer
-      Thread.sleep(1000)
-    }
+    import akka.stream.io.Implicits._
+    val fileSink = Sink.synchronousFile(new File("target/primes.txt"))
+    val slowSink = Flow[Int]
+      // act as if processing is really slow
+      .map(i => { Thread.sleep(1000); ByteString(i.toString) })
+      .toMat(fileSink)((_, bytesWritten) => bytesWritten)
 
     // console output sink
     val consoleSink = Sink.foreach[Int](println)
@@ -48,11 +49,9 @@ object WritePrimes {
     // ensure the output file is closed and the system shutdown upon completion
     materialized.onComplete {
       case Success(_) =>
-        Try(output.close())
         system.shutdown()
       case Failure(e) =>
         println(s"Failure: ${e.getMessage}")
-        Try(output.close())
         system.shutdown()
     }
 
