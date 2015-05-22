@@ -156,7 +156,7 @@ filter(line => line.length > 3).
 
 <p>
 All stream manipulation operations can be found in the
-<a href="http://doc.akka.io/api/akka-stream-and-http-experimental/1.0-RC1/#akka.stream.scaladsl.package" target="_blank">API documentation</a>.
+<a href="http://doc.akka.io/api/akka-stream-and-http-experimental/1.0-RC3/#akka.stream.scaladsl.package" target="_blank">API documentation</a>.
 </p>
 
 </div>
@@ -193,7 +193,7 @@ can potentially be pipelined, i.e. executed in parallel.
 <p>
 Then we connect that prime number producer to two consumers. One writing to a file, and another
 printing to the console. To simulate that the file writer is slow we have added an additional
-sleep.
+sleep in a map stage right before the <code>SynchronousFileSink</code>.
 </p>
 
 <p>
@@ -204,7 +204,10 @@ and click the 'Run' button.
 
 <p>
 Note that speed of the output in the console is limited by the slow file writer, i.e.
-one element per second.
+one element per second. When running the app you will notice that elements are requestedin
+larger batches than precisely 1 by 1, this is because the File sink is tries to optimise its
+request behaviour in order to write as many elements at once to the target file. You can configure
+this behaviour by setting <code>.withAttributes(OperationAttributes.inputBuffer(initial, max))</code>.
 </p>
 
 <p>
@@ -347,7 +350,7 @@ Type a few characters in the telnet session and press enter to see them echoed b
 <h2>Links</h2>
 
 <ul>
-<li><a href="http://doc.akka.io/api/akka-stream-and-http-experimental/1.0-RC1/#akka.stream.scaladsl.package" target="_blank">Akka Streams 1.0-RC1 API documentation</a></li>
+<li><a href="http://doc.akka.io/api/akka-stream-and-http-experimental/1.0-RC3/#akka.stream.scaladsl.package" target="_blank">Akka Streams 1.0-RC3 API documentation</a></li>
 <li><a href="http://www.reactive-streams.org/" target="_blank">Reactive Streams</a></li>
 </ul>
 
