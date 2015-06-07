@@ -27,7 +27,7 @@ object GroupLogFile {
     import akka.stream.io.Implicits._ // add file sources to Source object or use explicitly: SynchronousFileSource(f)
     Source.synchronousFile(logFile).
       // parse chunks of bytes into lines
-      transform(() => parseLines("\n", 512)).
+      transform(() => parseLines(System.lineSeparator, 512)).
       // group them by log level
       groupBy {
         case LoglevelPattern(level) => level
