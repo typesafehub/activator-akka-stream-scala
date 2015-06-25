@@ -1,7 +1,7 @@
 package sample.stream
 
 import akka.actor.ActorSystem
-import akka.stream.ActorFlowMaterializer
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 
 object BasicTransformation {
@@ -10,7 +10,7 @@ object BasicTransformation {
     implicit val system = ActorSystem("Sys")
     import system.dispatcher
 
-    implicit val materializer = ActorFlowMaterializer()
+    implicit val materializer = ActorMaterializer()
 
     val text =
       """|Lorem Ipsum is simply dummy text of the printing and typesetting industry.
