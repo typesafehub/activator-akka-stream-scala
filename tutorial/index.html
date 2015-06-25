@@ -76,7 +76,7 @@ produced into a stream may be discarded by later processors, e.g. when using the
 <p>
 By default every operation is executed within its own <code>Actor</code>
 to enable full pipelining of the chained set of computations. This behavior
-is determined by the <code>akka.stream.ActorFlowMaterializer</code> which is required
+is determined by the <code>akka.stream.ActorMaterializer</code> which is required
 by those methods that materialize the Flow into a series of
 <code>org.reactivestreams.Processor</code> instances that are started and active.
 Synchronous compaction of steps is possible (but not yet implemented).
@@ -259,7 +259,7 @@ and look at the resulting output log files in the
 
 <p>
 Akka Streams also provides a stream based API on top of
-<a href="http://doc.akka.io/docs/akka/2.3.10/scala/io.html" target="_blank">Akka I/O</a>.
+<a href="http://doc.akka.io/docs/akka/2.3.11/scala/io.html" target="_blank">Akka I/O</a>.
 </p>
 
 <p>

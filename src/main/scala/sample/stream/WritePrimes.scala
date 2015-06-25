@@ -3,19 +3,19 @@ package sample.stream
 import java.io.File
 
 import akka.actor.ActorSystem
-import akka.stream.ActorFlowMaterializer
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl._
 import akka.util.ByteString
 
 import scala.concurrent.forkjoin.ThreadLocalRandom
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object WritePrimes {
 
   def main(args: Array[String]): Unit = {
     implicit val system = ActorSystem("Sys")
     import system.dispatcher
-    implicit val materializer = ActorFlowMaterializer()
+    implicit val materializer = ActorMaterializer()
 
     // generate random numbers
     val maxRandomNumberSize = 1000000

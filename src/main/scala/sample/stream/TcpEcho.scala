@@ -2,7 +2,7 @@ package sample.stream
 
 import akka.actor.ActorSystem
 import akka.pattern.ask
-import akka.stream.ActorFlowMaterializer
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Flow, Sink, Source, Tcp }
 import akka.util.ByteString
 import scala.concurrent.duration._
@@ -43,7 +43,7 @@ object TcpEcho {
   def server(system: ActorSystem, address: String, port: Int): Unit = {
     implicit val sys = system
     import system.dispatcher
-    implicit val materializer = ActorFlowMaterializer()
+    implicit val materializer = ActorMaterializer()
 
     val handler = Sink.foreach[Tcp.IncomingConnection] { conn =>
       println("Client connected from: " + conn.remoteAddress)
@@ -66,7 +66,7 @@ object TcpEcho {
   def client(system: ActorSystem, address: String, port: Int): Unit = {
     implicit val sys = system
     import system.dispatcher
-    implicit val materializer = ActorFlowMaterializer()
+    implicit val materializer = ActorMaterializer()
 
     val testInput = ('a' to 'z').map(ByteString(_))
 
