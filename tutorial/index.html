@@ -208,7 +208,7 @@ one element per second. When running the app you will notice that elements are n
 precisely 1 by 1, but in larger batches.  This is because the File sink tries to optimise its
 request behaviour in order to write as many elements at once as possible to the target file.
 You can configure this behaviour by setting
-<code>.withAttributes(OperationAttributes.inputBuffer(initial, max))</code>.
+<code>.withAttributes(Attributes.inputBuffer(initial, max))</code>.
 </p>
 
 <p>
