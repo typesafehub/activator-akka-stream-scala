@@ -4,6 +4,7 @@ import java.io.File
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import akka.stream.ClosedShape
 import akka.stream.scaladsl._
 import akka.util.ByteString
 
@@ -38,13 +39,15 @@ object WritePrimes {
     val consoleSink = Sink.foreach[Int](println)
 
     // send primes to both slow file sink and console sink using graph API
-    val materialized = FlowGraph.closed(slowSink, consoleSink)((slow, _) => slow) { implicit builder =>
+    val graph = FlowGraph.create(slowSink, consoleSink)((slow, _) => slow) { implicit builder =>
       (slow, console) =>
         import FlowGraph.Implicits._
         val broadcast = builder.add(Broadcast[Int](2)) // the splitter - like a Unix tee
         primeSource ~> broadcast ~> slow // connect primes to splitter, and one side to file
         broadcast ~> console // connect other side of splitter to console
-    }.run()
+        ClosedShape
+    }
+    val materialized = RunnableGraph.fromGraph(graph).run()
 
     // ensure the output file is closed and the system shutdown upon completion
     materialized.onComplete {
