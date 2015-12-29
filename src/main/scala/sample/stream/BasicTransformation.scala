@@ -18,7 +18,7 @@ object BasicTransformation {
          |when an unknown printer took a galley of type and scrambled it to make a type
          |specimen book.""".stripMargin
 
-    Source(() => text.split("\\s").iterator).
+    Source.fromIterator(() => text.split("\\s").iterator).
       map(_.toUpperCase).
       runForeach(println).
       onComplete(_ => system.shutdown())
