@@ -21,15 +21,14 @@ object WritePrimes {
     // generate random numbers
     val maxRandomNumberSize = 1000000
     val primeSource: Source[Int, Unit] =
-      Source(() => Iterator.continually(ThreadLocalRandom.current().nextInt(maxRandomNumberSize))).
+      Source.fromIterator(() => Iterator.continually(ThreadLocalRandom.current().nextInt(maxRandomNumberSize))).
         // filter prime numbers
         filter(rnd => isPrime(rnd)).
         // and neighbor +2 is also prime
         filter(prime => isPrime(prime + 2))
 
     // write to file sink
-    import akka.stream.io.Implicits._
-    val fileSink = Sink.synchronousFile(new File("target/primes.txt"))
+    val fileSink = FileIO.toFile(new File("target/primes.txt"))
     val slowSink = Flow[Int]
       // act as if processing is really slow
       .map(i => { Thread.sleep(1000); ByteString(i.toString) })
@@ -39,9 +38,9 @@ object WritePrimes {
     val consoleSink = Sink.foreach[Int](println)
 
     // send primes to both slow file sink and console sink using graph API
-    val graph = FlowGraph.create(slowSink, consoleSink)((slow, _) => slow) { implicit builder =>
+    val graph = GraphDSL.create(slowSink, consoleSink)((slow, _) => slow) { implicit builder =>
       (slow, console) =>
-        import FlowGraph.Implicits._
+        import GraphDSL.Implicits._
         val broadcast = builder.add(Broadcast[Int](2)) // the splitter - like a Unix tee
         primeSource ~> broadcast ~> slow // connect primes to splitter, and one side to file
         broadcast ~> console // connect other side of splitter to console
