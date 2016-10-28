@@ -1,12 +1,15 @@
 package sample.stream
 
 import akka.actor.ActorSystem
-import akka.pattern.ask
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{ Flow, Sink, Source, Tcp }
+import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.Tcp
 import akka.util.ByteString
-import scala.concurrent.duration._
-import scala.util.{ Failure, Success }
+
+import scala.util.Failure
+import scala.util.Success
 
 object TcpEcho {
 
@@ -58,7 +61,7 @@ object TcpEcho {
         println("Server started, listening on: " + b.localAddress)
       case Failure(e) =>
         println(s"Server could not bind to $address:$port: ${e.getMessage}")
-        system.shutdown()
+        system.terminate()
     }
 
   }
@@ -74,13 +77,13 @@ object TcpEcho {
       runFold(ByteString.empty) { (acc, in) ⇒ acc ++ in }
 
     result.onComplete {
-      case Success(result) =>
-        println(s"Result: " + result.utf8String)
+      case Success(successResult) =>
+        println(s"Result: " + successResult.utf8String)
         println("Shutting down client")
-        system.shutdown()
+        system.terminate()
       case Failure(e) =>
         println("Failure: " + e.getMessage)
-        system.shutdown()
+        system.terminate()
     }
   }
 }
