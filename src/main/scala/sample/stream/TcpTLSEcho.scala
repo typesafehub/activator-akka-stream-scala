@@ -53,11 +53,11 @@ object TcpTLSEcho {
     }
   }
 
-  // ------------------------ server ------------------------------ 
+  // ------------------------ server ------------------------------
   def server(system: ActorSystem, serverAddress: InetSocketAddress): Unit = {
     implicit val materializer = ActorMaterializer()(system)
     import system.dispatcher
-
+system
     val handler = Sink.foreach[Tcp.IncomingConnection] { conn =>
       system.log.info("Client connected from: " + conn.remoteAddress)
 
@@ -83,9 +83,9 @@ object TcpTLSEcho {
     }
   }
 
-  // ------------------------ end of server ------------------------------ 
+  // ------------------------ end of server ------------------------------
 
-  // ------------------------ client ------------------------------ 
+  // ------------------------ client ------------------------------
   def client(system: ActorSystem, serverAddress: InetSocketAddress): Unit = {
     implicit val materializer = ActorMaterializer()(system)
     import system.dispatcher
@@ -102,18 +102,20 @@ object TcpTLSEcho {
         .joinMat(Flow[ByteString].via(connection))(Keep.left)
         .run()
 
-    result onComplete {
+    result andThen {
       case Success(success) =>
         system.log.info("Result: " + success.utf8String)
       case Failure(failure) =>
         system.log.info("Failure: " + failure.getMessage)
+    } andThen {
+      case _ =>
+        system.log.info("Shutting down client")
+        system.terminate()
+        NotUsed.getInstance()
     }
-    system.log.info("Shutting down client")
-    system.terminate()
-    NotUsed.getInstance()
   }
 
-  // ------------------------ end of client ------------------------------ 
+  // ------------------------ end of client ------------------------------
 
   // ------------------------ setting up TLS ------------------------
   private def tlsStage(system: ActorSystem, role: TLSRole): BidiFlow[ByteString, ByteString, ByteString, ByteString, NotUsed] = {
